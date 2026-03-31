@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SprintTime</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SprintTime">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%22SprintTime%22,%22short_name%22:%22SprintTime%22,%22display%22:%22standalone%22,%22orientation%22:%22portrait%22,%22background_color%22:%22%230A0A0A%22,%22theme_color%22:%22%230A0A0A%22}">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --green: #00FF87;
+    --green-dim: #00CC6A;
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface2: #1E1E1E;
+    --surface3: #282828;
+    --border: #2A2A2A;
+    --text: #FFFFFF;
+    --text-dim: #888888;
+    --text-muted: #444444;
+    --red: #FF4757;
+    --yellow: #FFD700;
+    --blue: #4A90E2;
+  }
+
+  body {
+    background: #070707;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* TOP NAV */
+  .top-nav {
+    width: 100%;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .top-nav .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .top-nav .logo span { color: var(--green); }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--green);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .screen-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 4px;
+  }
+  .screen-tab {
+    padding: 7px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-dim);
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+  }
+  .screen-tab.active {
+    background: var(--green);
+    color: #000;
+    font-weight: 600;
+  }
+  .screen-tab:hover:not(.active) { color: var(--text); background: var(--surface3); }
+  .tag { font-size: 12px; color: var(--text-dim); }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: flex;
+    gap: 40px;
+    padding: 40px 32px;
+    max-width: 1300px;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  /* PHONE MOCKUP */
+  .phone-wrap {
+    flex-shrink: 0;
+    position: sticky;
+    top: 90px;
+  }
+  .phone {
+    width: 375px;
+    height: 812px;
+    background: var(--bg);
+    border-radius: 48px;
+    border: 2px solid #333;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.8), inset 0 0 0 1px #444;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #000;
+    border-radius: 0 0 20px 20px;
+    z-index: 10;
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .phone-screen.active { display: flex; }
+
+  /* STATUS BAR */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 24px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    z-index: 5;
+  }
+  .status-time { font-size: 15px; font-weight: 700; }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { width: 16px; height: 12px; }
+
+  /* ======================== SCREEN 1: HOME ======================== */
+  .s1 { background: var(--bg); }
+  .s1 .status-bar { background: var(--bg); }
+
+  .home-header {
+    padding: 16px 20px 20px;
+    background: var(--bg);
+  }
+  .home-header .greeting { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  .home-header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .home-header h1 span { color: var(--green); }
+
+  .stats-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+  }
+  .stat-card .stat-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .stat-val { font-size: 22px; font-weight: 700; }
+  .stat-card .stat-val span { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 0 20px 10px;
+  }
+
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 24px;
+  }
+  .qa-btn {
+    flex: 1;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 14px;
+    padding: 16px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.15s;
+  }
+  .qa-btn:active { transform: scale(0.97); }
+  .qa-btn.secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .qa-btn .qa-icon { font-size: 22px; }
+
+  .recent-label {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0 20px 12px;
+  }
+
+  .recent-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .recent-item {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+  }
+  .recent-thumb {
+    width: 56px; height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .recent-thumb::after {
+    content: '▶';
+    position: absolute;
+    font-size: 10px;
+    color: rgba(255,255,255,0.8);
+  }
+  .recent-info { flex: 1; }
+  .recent-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .recent-meta { font-size: 12px; color: var(--text-dim); }
+  .recent-time {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bottom-bar {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 20px 28px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .bb-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .bb-item.active { color: var(--green); }
+  .bb-icon { font-size: 22px; }
+
+  /* ======================== SCREEN 2: IMPORT VIDEO ======================== */
+  .s2 { background: var(--bg); }
+
+  .nav-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px 16px;
+    flex-shrink: 0;
+  }
+  .back-btn {
+    width: 34px; height: 34px;
+    background: var(--surface);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  .nav-title { font-size: 18px; font-weight: 700; }
+
+  .import-drop {
+    margin: 0 20px 20px;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    padding: 36px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .import-drop:hover { border-color: var(--green); }
+  .import-icon { font-size: 40px; }
+  .import-title { font-size: 16px; font-weight: 600; }
+  .import-sub { font-size: 12px; color: var(--text-dim); text-align: center; }
+  .import-badge {
+    background: var(--surface3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .or-line { flex: 1; height: 1px; background: var(--border); }
+
+  .source-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+  .source-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.2s;
+  }
+  .source-card:hover { border-color: var(--green); }
+  .source-card .s-icon { font-size: 28px; }
+  .source-card .s-name { font-size: 14px; font-weight: 600; }
+  .source-card .s-desc { font-size: 11px; color: var(--text-dim); }
+
+  .settings-section {
+    padding: 0 20px;
+  }
+  .settings-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-size: 14px; }
+  .setting-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .toggle {
+    width: 44px; height: 26px;
+    background: var(--green);
+    border-radius: 13px;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    right: 2px; top: 2px;
+    width: 22px; height: 22px;
+    background: #000;
+    border-radius: 50%;
+    transition: right 0.2s;
+  }
+  .toggle.off { background: var(--border); }
+  .toggle.off::after { right: 20px; background: var(--text-dim); }
+  .select-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .import-cta {
+    margin: 16px 20px 0;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    width: calc(100% - 40px);
+  }
+
+  /* ======================== SCREEN 3: STICKER EDITOR ======================== */
+  .s3 { background: #000; }
+
+  .video-viewport {
+    flex: 1;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .video-bg {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(160deg, #0d1117 0%, #0a1628 40%, #0d1117 100%);
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Simulated running track + athlete */
+  .track-scene {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    overflow: hidden;
+  }
+  .track-lines {
+    position: absolute;
+    bottom: 30%;
+    left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.15);
+  }
+  .track-lines::before {
+    content: '';
+    position: absolute;
+    bottom: 20px; left: 0; right: 0; height: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .athlete-silhouette {
+    position: absolute;
+    bottom: 30%;
+    left: 45%;
+    width: 28px;
+    height: 60px;
+    opacity: 0.6;
+  }
+  .fps-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+  }
+  .rec-badge {
+    position: absolute;
+    top: 12px; left: 12px;
+    background: rgba(0,0,0,0.7);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .rec-dot { width: 6px; height: 6px; background: #aaa; border-radius: 50%; }
+
+  /* Stopwatch stickers */
+  .sticker {
+    position: absolute;
+    background: rgba(0,0,0,0.82);
+    border: 1.5px solid var(--green);
+    border-radius: 12px;
+    padding: 8px 12px;
+    cursor: move;
+    user-select: none;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,255,135,0.25);
+  }
+  .sticker-label {
+    font-size: 9px;
+    color: var(--green);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 2px;
+  }
+  .sticker-time {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .sticker-ms {
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 600;
+    text-align: right;
+    margin-top: 1px;
+  }
+  .sticker1 { top: 18%; left: 10%; }
+  .sticker2 { top: 50%; right: 8%; }
+  .sticker-handle {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 16px; height: 16px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* Segment marker on video */
+  .seg-marker {
+    position: absolute;
+    bottom: 0; top: 0;
+    width: 2px;
+    background: var(--yellow);
+    opacity: 0.7;
+  }
+  .seg-marker::before {
+    content: attr(data-label);
+    position: absolute;
+    bottom: 8px;
+    left: 6px;
+    font-size: 9px;
+    color: var(--yellow);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Video controls */
+  .video-controls {
+    padding: 10px 16px;
+    background: #000;
+    flex-shrink: 0;
+  }
+  .scrubber-wrap {
+    position: relative;
+    height: 32px;
+    margin-bottom: 8px;
+  }
+  .scrubber-track {
+    position: absolute;
+    top: 50%;
+    left: 0; right: 0;
+    height: 4px;
+    background: var(--surface3);
+    border-radius: 2px;
+    transform: translateY(-50%);
+  }
+  .scrubber-fill {
+    position: absolute;
+    top: 0; left: 0;
+    width: 35%;
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+  }
+  .scrubber-thumb {
+    position: absolute;
+    top: 50%;
+    left: 35%;
+    width: 14px; height: 14px;
+    background: var(--text);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+  }
+  .seg-tick {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px; height: 16px;
+    background: var(--yellow);
+    border-radius: 1px;
+  }
+  .time-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 4px 0;
+  }
+  .ctrl-btn {
+    width: 36px; height: 36px;
+    background: var(--surface2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .ctrl-play {
+    width: 48px; height: 48px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    color: #000;
+  }
+
+  /* Sticker toolbar */
+  .sticker-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .sticker-toolbar::-webkit-scrollbar { display: none; }
+  .tool-chip {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .tool-chip.active { background: var(--green); color: #000; border-color: var(--green); }
+  .tool-chip:hover:not(.active) { border-color: var(--green); color: var(--green); }
+
+  /* ======================== SCREEN 4: SEGMENTS ======================== */
+  .s4 { background: var(--bg); }
+
+  .segment-editor {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 0 16px;
+  }
+  .segment-editor::-webkit-scrollbar { display: none; }
+
+  .video-mini {
+    height: 180px;
+    background: linear-gradient(160deg, #0d1117, #0a1628);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .video-mini-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mini-play {
+    width: 50px; height: 50px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .video-mini .fps-badge { top: 8px; right: 8px; }
+
+  /* Timeline ruler */
+  .timeline-section {
+    padding: 16px 20px 0;
+  }
+  .timeline-ruler {
+    height: 60px;
+    background: var(--surface);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .ruler-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 100%;
+    background: repeating-linear-gradient(90deg, transparent 0px, transparent 19px, var(--border) 20px);
+  }
+  .seg-region {
+    position: absolute;
+    top: 8px; bottom: 8px;
+    border-radius: 6px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    overflow: hidden;
+  }
+  .seg-region .seg-label-inner {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.4);
+    letter-spacing: 0.3px;
+  }
+  .ruler-cursor {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 28%;
+    width: 2px;
+    background: var(--text);
+    opacity: 0.9;
+  }
+  .ruler-cursor::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -5px;
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--text);
+  }
+
+  .segs-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .seg-item {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .seg-color {
+    width: 4px;
+    align-self: stretch;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .seg-info { flex: 1; }
+  .seg-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .seg-range { font-size: 12px; color: var(--text-dim); }
+  .seg-duration {
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+  }
+  .seg-duration small { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+
+  .add-seg-btn {
+    margin: 12px 20px 0;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 40px);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .add-seg-btn:hover { border-color: var(--green); color: var(--green); }
+
+  .precision-panel {
+    margin: 12px 20px 0;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+  .prec-title { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .prec-display {
+    font-size: 36px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -2px;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .prec-sub { font-size: 11px; color: var(--text-dim); }
+  .prec-bar {
+    margin-top: 10px;
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .prec-fill {
+    height: 100%;
+    width: 60%;
+    background: linear-gradient(90deg, var(--green-dim), var(--green));
+    border-radius: 3px;
+  }
+
+  /* ======================== SCREEN 5: EXPORT ======================== */
+  .s5 { background: var(--bg); }
+
+  .export-preview {
+    height: 200px;
+    background: linear-gradient(160deg, #0d1117, #0a1628);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .export-preview .sticker { top: 14px; left: 14px; }
+  .export-watermark {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .export-seg-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--surface3);
+  }
+  .export-seg-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00FF87, #FFD700 60%, #FF4757);
+  }
+
+  .export-options { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .export-section-title { font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+
+  .option-group {
+    background: var(--surface);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .option-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .option-row:last-child { border-bottom: none; }
+  .option-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+  .option-info { flex: 1; }
+  .option-label { font-size: 14px; font-weight: 500; }
+  .option-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .option-control { flex-shrink: 0; }
+  .option-selected {
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .option-selected::after { content: '›'; font-size: 16px; }
+
+  .quality-chips {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  .q-chip {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .q-chip .q-res { font-size: 14px; color: inherit; margin-bottom: 2px; }
+  .q-chip .q-size { font-size: 9px; opacity: 0.7; }
+  .q-chip.active { background: var(--green); color: #000; border-color: var(--green); }
+
+  .share-row {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px;
+  }
+  .share-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: border-color 0.2s;
+  }
+  .share-btn:hover { border-color: var(--green); color: var(--text); }
+  .share-btn .s-ico { font-size: 22px; }
+
+  .export-btn {
+    margin: 14px 20px 8px;
+    width: calc(100% - 40px);
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 16px;
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .size-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0 20px 8px;
+  }
+
+  /* ======================== RIGHT PANEL ======================== */
+  .right-panel {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .panel-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+  .panel-title span { color: var(--green); }
+  .panel-sub {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  /* Flow diagram */
+  .flow-section { margin-bottom: 40px; }
+  .flow-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .flow-steps {
+    display: flex;
+    gap: 0;
+    align-items: center;
+  }
+  .flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+  }
+  .flow-step-num {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+  }
+  .flow-step.active .flow-step-num {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0,255,135,0.4);
+  }
+  .flow-step-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-align: center;
+    transition: color 0.2s;
+  }
+  .flow-step.active .flow-step-name { color: var(--green); }
+  .flow-arrow {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin: 0 4px;
+    padding-bottom: 24px;
+  }
+
+  /* Spec cards */
+  .specs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .spec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    transition: border-color 0.2s;
+  }
+  .spec-card:hover { border-color: var(--green); }
+  .spec-card-icon { font-size: 26px; margin-bottom: 10px; }
+  .spec-card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .spec-card-body { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .spec-card-body strong { color: var(--green); }
+
+  /* Timeline */
+  .timeline-section-outer { margin-bottom: 32px; }
+  .timeline-outer-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .timeline-weeks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .week-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .week-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    width: 70px;
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+  .week-bar-wrap {
+    flex: 1;
+    height: 28px;
+    background: var(--surface);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .week-bar {
+    height: 100%;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Cost */
+  .cost-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .cost-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .cost-card.featured { border-color: var(--green); background: rgba(0,255,135,0.04); }
+  .cost-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; }
+  .cost-price { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin-bottom: 4px; }
+  .cost-price span { font-size: 14px; color: var(--text-dim); font-weight: 400; }
+  .cost-card.featured .cost-price { color: var(--green); }
+  .cost-items { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .cost-item { font-size: 12px; color: var(--text-dim); display: flex; gap: 6px; }
+  .cost-item::before { content: '✓'; color: var(--green); font-weight: 700; }
+
+  /* Future features */
+  .future-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .future-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+  }
+  .future-chip .chip-icon { font-size: 16px; }
+
+  /* ======================== VIDEO ZOOM LAYER ======================== */
+  #videoZoomLayer {
+    position: absolute;
+    inset: 0;
+    transform-origin: center center;
+    will-change: transform;
+  }
+  #videoZoomLayer video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* Tools tab button */
+  .tools-tab-btn {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 22px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    letter-spacing: 0.3px;
+  }
+  .tools-tab-btn.active {
+    background: var(--green);
+    color: #000;
+    border-color: var(--green);
+  }
+
+  /* Tools panel */
+  .tools-panel {
+    position: absolute;
+    bottom: 54px;
+    right: 14px;
+    background: rgba(10,10,10,0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 10px;
+    z-index: 20;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 110px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .tools-panel.hidden { display: none; }
+
+  /* Split button */
+  .split-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: transform 0.1s;
+    white-space: nowrap;
+  }
+  .split-btn:active { transform: scale(0.95); }
+
+  /* Split clock overlay */
+  .split-clock {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+    z-index: 15;
+  }
+  .split-clock-inner {
+    background: rgba(0,0,0,0.72);
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 10px;
+    padding: 6px 10px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.7);
+  }
+  .split-clock-time {
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+    color: #fff;
+    text-shadow:
+      0 0 8px rgba(0,0,0,1),
+      0 1px 4px rgba(0,0,0,1),
+      -1px 0 3px rgba(0,0,0,1),
+       1px 0 3px rgba(0,0,0,1);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .split-clock-ms {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,1);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .split-clock-delete {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 18px; height: 18px;
+    background: #FF4757;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: white;
+    cursor: pointer;
+    font-weight: 900;
+    z-index: 16;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    line-height: 1;
+  }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .pulse { animation: pulse 2s infinite; }
+  .blink { animation: blink 1s infinite; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* SVG athlete */
+  .athlete-svg {
+    position: absolute;
+    bottom: 30%;
+    left: 40%;
+    opacity: 0.5;
+    width: 80px;
+  }
+
+  /* Grid lines on video */
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ======================== MOBILE WEB APP ======================== */
+  @media (max-width: 500px) {
+    body {
+      background: var(--bg);
+      display: block;
+      overflow: hidden;
+      height: 100dvh;
+    }
+
+    .top-nav { display: none; }
+    .right-panel { display: none; }
+
+    .main {
+      padding: 0;
+      gap: 0;
+      max-width: none;
+      height: 100dvh;
+    }
+
+    .phone-wrap {
+      position: static;
+      width: 100%;
+      height: 100dvh;
+    }
+
+    .phone {
+      width: 100%;
+      height: 100dvh;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+    }
+
+    /* Hide the notch pseudo-element on real phones */
+    .phone::before { display: none; }
+
+    /* Hide fake status bar — real phone has its own */
+    .status-bar { display: none; }
+
+    /* Screens fill full height */
+    .phone-screen {
+      height: 100dvh;
+    }
+
+    /* Safe area padding for home indicator */
+    .bottom-bar {
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Sprint<span>Time</span>
+  </div>
+  <div class="screen-tabs">
+    <button class="screen-tab active" onclick="showScreen(0)">Home</button>
+    <button class="screen-tab" onclick="showScreen(1)">Import</button>
+    <button class="screen-tab" onclick="showScreen(2)">Stickers</button>
+    <button class="screen-tab" onclick="showScreen(3)">Segments</button>
+    <button class="screen-tab" onclick="showScreen(4)">Export</button>
+  </div>
+  <div class="tag">UI/UX Prototype · Sprint Video Timing App</div>
+</nav>
+
+<div class="main">
+
+  <!-- PHONE MOCKUP -->
+  <div class="phone-wrap">
+    <div class="phone">
+
+      <!-- SCREEN 1: HOME -->
+      <div class="phone-screen s1 active" id="ps-0">
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 17 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1" opacity="0.3"/></svg>
+            <span style="font-size:11px">●●</span>
+            <span style="font-size:11px">⬛</span>
+          </div>
+        </div>
+
+        <div class="home-header">
+          <div class="greeting">Good morning, Coach 👋</div>
+          <h1>Sprint<span>Time</span></h1>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Sessions</div>
+            <div class="stat-val">24 <span>total</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Best 100m</div>
+            <div class="stat-val" style="color:var(--green)">9.87 <span>s</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg FPS</div>
+            <div class="stat-val">120 <span>fps</span></div>
+          </div>
+        </div>
+
+        <div class="section-label">Quick Start</div>
+        <div class="quick-actions">
+          <button class="qa-btn" onclick="showScreen(1)">
+            <div class="qa-icon">📁</div>
+            Import Video
+          </button>
+          <button class="qa-btn secondary">
+            <div class="qa-icon">🎥</div>
+            Record
+          </button>
+          <button class="qa-btn secondary">
+            <div class="qa-icon">☁️</div>
+            Cloud
+          </button>
+        </div>
+
+        <div class="recent-label">Recent Sessions</div>
+        <div class="recent-list">
+          <div class="recent-item">
+            <div class="recent-thumb">🏃</div>
+            <div class="recent-info">
+              <div class="recent-name">100m Trial — Marcus</div>
+              <div class="recent-meta">4K · 240fps · 2 segments</div>
+            </div>
+            <div class="recent-time">9.87s</div>
+          </div>
+          <div class="recent-item">
+            <div class="recent-thumb">⚡</div>
+            <div class="recent-info">
+              <div class="recent-name">40yd Dash — Jordan</div>
+              <div class="recent-meta">1080p · 120fps · 3 segments</div>
+            </div>
+            <div class="recent-time">4.21s</div>
+          </div>
+          <div class="recent-item">
+            <div class="recent-thumb">🏅</div>
+            <div class="recent-info">
+              <div class="recent-name">200m Sprint — Team A</div>
+              <div class="recent-meta">4K · 60fps · 1 segment</div>
+            </div>
+            <div class="recent-time">19.43s</div>
+          </div>
+        </div>
+
+        <div class="bottom-bar">
+          <div class="bb-item active"><div class="bb-icon">⊞</div>Home</div>
+          <div class="bb-item"><div class="bb-icon">📊</div>Stats</div>
+          <div class="bb-item"><div class="bb-icon">🎬</div>Library</div>
+          <div class="bb-item"><div class="bb-icon">⚙</div>Settings</div>
+        </div>
+      </div>
+
+      <!-- SCREEN 2: IMPORT VIDEO -->
+      <div class="phone-screen s2" id="ps-1">
+        <div class="status-bar" style="background:var(--bg)">
+          <span class="status-time">9:41</span>
+          <div class="status-icons"><span style="font-size:11px">●●</span><span style="font-size:11px">⬛</span></div>
+        </div>
+        <div class="nav-header">
+          <div class="back-btn" onclick="showScreen(0)">‹</div>
+          <div class="nav-title">Import Video</div>
+        </div>
+
+        <div style="overflow-y:auto; flex:1;">
+          <div class="import-drop">
+            <div class="import-icon">⬆</div>
+            <div class="import-title">Drop video here</div>
+            <div class="import-sub">Supports MP4, MOV, HEVC<br>Up to 4K · 240fps</div>
+            <div class="import-badge">NO COMPRESSION</div>
+          </div>
+
+          <div class="or-divider">
+            <div class="or-line"></div>
+            or choose source
+            <div class="or-line"></div>
+          </div>
+
+          <div class="source-grid">
+            <div class="source-card" onclick="document.getElementById('videoFileInput').click()">
+              <div class="s-icon">📷</div>
+              <div class="s-name">Camera Roll</div>
+              <div class="s-desc">Photos & Videos app</div>
+            </div>
+            <div class="source-card" onclick="document.getElementById('videoFileInput').click()">
+              <div class="s-icon">🎥</div>
+              <div class="s-name">Record Now</div>
+              <div class="s-desc">Use camera directly</div>
+            </div>
+            <div class="source-card" onclick="document.getElementById('videoFileInput').click()">
+              <div class="s-icon">☁️</div>
+              <div class="s-name">iCloud Drive</div>
+              <div class="s-desc">Cloud storage</div>
+            </div>
+            <div class="source-card" onclick="document.getElementById('videoFileInput').click()">
+              <div class="s-icon">📂</div>
+              <div class="s-name">Files App</div>
+              <div class="s-desc">Any file location</div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Import Settings</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Preserve Frame Rate</div>
+                <div class="setting-sub">Keep original fps (60–240)</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Minimal Compression</div>
+                <div class="setting-sub">Best quality, larger files</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Resolution</div>
+                <div class="setting-sub">Max quality preserved</div>
+              </div>
+              <div class="select-pill">4K</div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Auto Cloud Sync</div>
+                <div class="setting-sub">Upload after analysis</div>
+              </div>
+              <div class="toggle off"></div>
+            </div>
+          </div>
+
+          <button class="import-cta" onclick="document.getElementById('videoFileInput').click()">Continue to Editor →</button>
+          <input type="file" id="videoFileInput" accept="video/*" style="display:none">
+        </div>
+      </div>
+
+      <!-- SCREEN 3: VIDEO EDITOR -->
+      <div class="phone-screen s3" id="ps-2">
+        <div class="status-bar" style="background:#000; padding-top:4px;">
+          <span class="status-time">9:41</span>
+          <div class="status-icons"><span style="font-size:11px">●●</span><span style="font-size:11px">⬛</span></div>
+        </div>
+        <div class="nav-header" style="background:#000; padding-bottom:6px;">
+          <div class="back-btn" onclick="showScreen(1)" style="background:#111; border-color:#333;">‹</div>
+          <div class="nav-title">Video Editor</div>
+          <button onclick="showScreen(3)" style="margin-left:auto; background:var(--green); color:#000; border:none; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer;">Next →</button>
+        </div>
+
+        <!-- Video area -->
+        <div class="video-viewport" id="videoViewport">
+          <!-- Zoomable video layer -->
+          <div id="videoZoomLayer">
+            <video id="mainVideo" playsinline></video>
+          </div>
+
+          <div class="fps-badge pulse">240 FPS</div>
+          <div class="rec-badge"><div class="rec-dot blink"></div>4K</div>
+
+          <!-- Tools toggle button (always visible, outside zoom layer) -->
+          <button class="tools-tab-btn" id="toolsTabBtn">⚙ Tools</button>
+
+          <!-- Tools panel (hidden by default) -->
+          <div class="tools-panel hidden" id="toolsPanel">
+            <button class="split-btn" id="splitBtn">✂ Split</button>
+          </div>
+        </div>
+
+        <!-- Video controls -->
+        <div class="video-controls">
+          <div class="scrubber-wrap">
+            <div class="scrubber-track">
+              <div class="scrubber-fill"></div>
+            </div>
+            <div class="scrubber-thumb"></div>
+          </div>
+          <div class="time-labels">
+            <span>0:00.000</span>
+            <span id="currentTimeLabel" style="color:var(--green); font-weight:700;">0:00.000</span>
+            <span id="durationLabel">0:00.000</span>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-btn">⏮</div>
+            <div class="ctrl-btn">⏪</div>
+            <div class="ctrl-play">▶</div>
+            <div class="ctrl-btn">⏩</div>
+            <div class="ctrl-btn">⏭</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCREEN 4: DEFINE SEGMENTS -->
+      <div class="phone-screen s4" id="ps-3">
+        <div class="status-bar" style="background:var(--bg)">
+          <span class="status-time">9:41</span>
+          <div class="status-icons"><span style="font-size:11px">●●</span><span style="font-size:11px">⬛</span></div>
+        </div>
+        <div class="nav-header">
+          <div class="back-btn" onclick="showScreen(2)">‹</div>
+          <div class="nav-title">Define Segments</div>
+          <button onclick="showScreen(4)" style="margin-left:auto; background:var(--green); color:#000; border:none; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer;">Export →</button>
+        </div>
+
+        <div style="overflow-y:auto; flex:1; padding-bottom:20px;">
+          <!-- Mini video -->
+          <div class="video-mini">
+            <div style="position:absolute; inset:0; background:linear-gradient(160deg,#0d1117,#0a1628); display:flex; align-items:center; justify-content:center;">
+              <svg width="60" height="110" viewBox="0 0 60 120" fill="none" style="opacity:0.4">
+                <circle cx="30" cy="12" r="10" fill="white"/>
+                <line x1="30" y1="22" x2="30" y2="70" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                <line x1="30" y1="40" x2="8" y2="30" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="40" x2="52" y2="55" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="70" x2="12" y2="100" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="70" x2="48" y2="95" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="fps-badge">240 FPS · 4K</div>
+            <div class="video-mini-overlay">
+              <div class="mini-play">▶</div>
+            </div>
+          </div>
+
+          <!-- Timeline ruler -->
+          <div class="timeline-section">
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px; display:flex; justify-content:space-between;">
+              <span>Timeline</span>
+              <span style="color:var(--green); font-weight:600;">9.870s total</span>
+            </div>
+            <div class="timeline-ruler">
+              <div class="ruler-fill"></div>
+              <!-- Reaction segment -->
+              <div class="seg-region" style="left:0%; width:14%; background:rgba(74,144,226,0.5); border:1px solid var(--blue);">
+                <span class="seg-label-inner" style="color:#fff;">RXN</span>
+              </div>
+              <!-- Drive phase -->
+              <div class="seg-region" style="left:14%; width:26%; background:rgba(0,255,135,0.35); border:1px solid var(--green);">
+                <span class="seg-label-inner" style="color:var(--green);">DRIVE</span>
+              </div>
+              <!-- Max velocity -->
+              <div class="seg-region" style="left:40%; width:35%; background:rgba(255,215,0,0.3); border:1px solid var(--yellow);">
+                <span class="seg-label-inner" style="color:var(--yellow);">MAX V</span>
+              </div>
+              <!-- Decel -->
+              <div class="seg-region" style="left:75%; width:25%; background:rgba(255,71,87,0.3); border:1px solid var(--red);">
+                <span class="seg-label-inner" style="color:var(--red);">DEC</span>
+              </div>
+              <div class="ruler-cursor"></div>
+            </div>
+          </div>
+
+          <!-- Precision display -->
+          <div class="precision-panel" style="margin:0 20px 16px;">
+            <div class="prec-title">Frame Precision</div>
+            <div class="prec-display">00:01.382</div>
+            <div class="prec-sub">Frame 331 of 2369 · 240fps · ±4.17ms accuracy</div>
+            <div class="prec-bar"><div class="prec-fill"></div></div>
+          </div>
+
+          <!-- Segments list -->
+          <div class="segs-list">
+            <div class="seg-item">
+              <div class="seg-color" style="background:var(--blue);"></div>
+              <div class="seg-info">
+                <div class="seg-name">Reaction Time</div>
+                <div class="seg-range">0:00.000 → 0:01.382</div>
+              </div>
+              <div>
+                <div class="seg-duration">1.382<small>s</small></div>
+              </div>
+            </div>
+            <div class="seg-item">
+              <div class="seg-color" style="background:var(--green);"></div>
+              <div class="seg-info">
+                <div class="seg-name">Drive Phase</div>
+                <div class="seg-range">0:01.382 → 0:03.952</div>
+              </div>
+              <div>
+                <div class="seg-duration" style="color:var(--green)">2.570<small>s</small></div>
+              </div>
+            </div>
+            <div class="seg-item">
+              <div class="seg-color" style="background:var(--yellow);"></div>
+              <div class="seg-info">
+                <div class="seg-name">Max Velocity</div>
+                <div class="seg-range">0:03.952 → 0:07.408</div>
+              </div>
+              <div>
+                <div class="seg-duration" style="color:var(--yellow)">3.456<small>s</small></div>
+              </div>
+            </div>
+            <div class="seg-item">
+              <div class="seg-color" style="background:var(--red);"></div>
+              <div class="seg-info">
+                <div class="seg-name">Deceleration</div>
+                <div class="seg-range">0:07.408 → 0:09.870</div>
+              </div>
+              <div>
+                <div class="seg-duration" style="color:var(--red)">2.462<small>s</small></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="add-seg-btn">+ Add Segment</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 5: EXPORT -->
+      <div class="phone-screen s5" id="ps-4">
+        <div class="status-bar" style="background:var(--bg)">
+          <span class="status-time">9:41</span>
+          <div class="status-icons"><span style="font-size:11px">●●</span><span style="font-size:11px">⬛</span></div>
+        </div>
+        <div class="nav-header">
+          <div class="back-btn" onclick="showScreen(3)">‹</div>
+          <div class="nav-title">Export</div>
+        </div>
+
+        <div style="overflow-y:auto; flex:1; padding-bottom:16px;">
+          <!-- Export preview -->
+          <div class="export-preview">
+            <div style="position:absolute; inset:0; background:linear-gradient(160deg,#0d1117,#0a1628); display:flex; align-items:center; justify-content:center;">
+              <svg width="50" height="90" viewBox="0 0 60 120" fill="none" style="opacity:0.45">
+                <circle cx="30" cy="12" r="10" fill="white"/>
+                <line x1="30" y1="22" x2="30" y2="70" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                <line x1="30" y1="40" x2="8" y2="30" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="40" x2="52" y2="55" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="70" x2="12" y2="100" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="30" y1="70" x2="48" y2="95" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <!-- Overlay sticker on preview -->
+            <div class="sticker" style="top:10px; left:10px; padding:6px 10px; border-color:var(--green);">
+              <div class="sticker-label" style="font-size:8px;">Finish</div>
+              <div class="sticker-time" style="font-size:17px;">9:87</div>
+              <div class="sticker-ms" style="font-size:9px;">.452</div>
+            </div>
+            <div class="sticker" style="bottom:30px; right:10px; padding:5px 8px; border-color:var(--yellow);">
+              <div class="sticker-label" style="font-size:7px; color:var(--yellow);">Drive</div>
+              <div class="sticker-time" style="font-size:14px;">2:570</div>
+              <div class="sticker-ms" style="font-size:8px; color:var(--yellow);">.000</div>
+            </div>
+            <div class="export-watermark">SprintTime</div>
+            <div class="export-seg-bar"><div class="export-seg-fill"></div></div>
+          </div>
+
+          <div class="export-options">
+            <!-- Quality -->
+            <div class="export-section-title">Quality</div>
+            <div class="quality-chips">
+              <div class="q-chip">
+                <div class="q-res">1080p</div>
+                <div class="q-size">~180MB</div>
+              </div>
+              <div class="q-chip active">
+                <div class="q-res">4K</div>
+                <div class="q-size">~620MB</div>
+              </div>
+              <div class="q-chip">
+                <div class="q-res">4K HQ</div>
+                <div class="q-size">~1.2GB</div>
+              </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="export-section-title" style="margin-top:4px;">Settings</div>
+            <div class="option-group">
+              <div class="option-row">
+                <div class="option-icon">⏱</div>
+                <div class="option-info">
+                  <div class="option-label">Timing Overlays</div>
+                  <div class="option-sub">Burn stickers into video</div>
+                </div>
+                <div class="option-control"><div class="toggle"></div></div>
+              </div>
+              <div class="option-row">
+                <div class="option-icon">📐</div>
+                <div class="option-info">
+                  <div class="option-label">Segment Markers</div>
+                  <div class="option-sub">Timeline bar at bottom</div>
+                </div>
+                <div class="option-control"><div class="toggle"></div></div>
+              </div>
+              <div class="option-row">
+                <div class="option-icon">🎞</div>
+                <div class="option-info">
+                  <div class="option-label">Frame Rate</div>
+                  <div class="option-sub">Preserve original</div>
+                </div>
+                <div class="option-control"><div class="option-selected">240fps</div></div>
+              </div>
+              <div class="option-row">
+                <div class="option-icon">☁️</div>
+                <div class="option-info">
+                  <div class="option-label">Cloud Backup</div>
+                  <div class="option-sub">Save to iCloud after export</div>
+                </div>
+                <div class="option-control"><div class="toggle off"></div></div>
+              </div>
+            </div>
+
+            <!-- Share -->
+            <div class="export-section-title">Share To</div>
+          </div>
+
+          <div class="share-row">
+            <div class="share-btn"><div class="s-ico">📱</div>Photos</div>
+            <div class="share-btn"><div class="s-ico">📨</div>Messages</div>
+            <div class="share-btn"><div class="s-ico">📤</div>Share</div>
+            <div class="share-btn"><div class="s-ico">☁️</div>Cloud</div>
+          </div>
+
+          <button class="export-btn">⬇ Export Video</button>
+          <div class="size-note">Est. file size: ~620MB · 4K · 240fps · 9.87s</div>
+        </div>
+      </div>
+
+    </div><!-- /phone -->
+  </div><!-- /phone-wrap -->
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="panel-title">Sprint<span>Time</span> App</div>
+    <div class="panel-sub">Frame-accurate sprint video analysis for coaches and athletes. Click any screen tab above to navigate through the full app flow.</div>
+
+    <!-- User Flow -->
+    <div class="flow-section">
+      <div class="flow-section-title">User Flow</div>
+      <div class="flow-steps">
+        <div class="flow-step active" id="fs-0" onclick="showScreen(0)">
+          <div class="flow-step-num">🏠</div>
+          <div class="flow-step-name">Home</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="fs-1" onclick="showScreen(1)">
+          <div class="flow-step-num">📁</div>
+          <div class="flow-step-name">Import</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="fs-2" onclick="showScreen(2)">
+          <div class="flow-step-num">⏱</div>
+          <div class="flow-step-name">Stickers</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="fs-3" onclick="showScreen(3)">
+          <div class="flow-step-num">✂️</div>
+          <div class="flow-step-name">Segments</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" id="fs-4" onclick="showScreen(4)">
+          <div class="flow-step-num">⬇</div>
+          <div class="flow-step-name">Export</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spec cards -->
+    <div class="flow-section-title">Key Specifications</div>
+    <div class="specs-grid">
+      <div class="spec-card">
+        <div class="spec-card-icon">🎥</div>
+        <div class="spec-card-title">Video Quality</div>
+        <div class="spec-card-body">Supports <strong>1080p – 4K</strong> at <strong>60–240 FPS</strong>. Minimal compression via FFmpeg. AVFoundation (iOS) + CameraX (Android).</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-icon">⏱</div>
+        <div class="spec-card-title">Timing Precision</div>
+        <div class="spec-card-body">Frame-accurate to <strong>±4ms</strong>. Uses frame index + FPS for <strong>millisecond timing</strong>. No GPS or manual stopwatch needed.</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-icon">🎨</div>
+        <div class="spec-card-title">Sticker Overlays</div>
+        <div class="spec-card-body"><strong>Interactive, movable</strong> stopwatch stickers. Pinned to frame timestamps. Customizable colors and labels.</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-icon">📱</div>
+        <div class="spec-card-title">Cross-Platform</div>
+        <div class="spec-card-body">Built with <strong>React Native or Flutter</strong>. One codebase for iOS + Android. Optional cloud sync for team storage.</div>
+      </div>
+    </div>
+
+    <!-- 18-week timeline -->
+    <div class="timeline-section-outer">
+      <div class="timeline-outer-title">18-Week Development Roadmap</div>
+      <div class="timeline-weeks">
+        <div class="week-row">
+          <div class="week-label">Wks 1–3</div>
+          <div class="week-bar-wrap">
+            <div class="week-bar" style="width:16.6%; background:rgba(74,144,226,0.35); color:var(--blue);">Design & Wireframes</div>
+          </div>
+        </div>
+        <div class="week-row">
+          <div class="week-label">Wks 4–7</div>
+          <div class="week-bar-wrap">
+            <div class="week-bar" style="width:22.2%; margin-left:16.6%; background:rgba(0,255,135,0.25); color:var(--green);">Video Engine</div>
+          </div>
+        </div>
+        <div class="week-row">
+          <div class="week-label">Wks 8–11</div>
+          <div class="week-bar-wrap">
+            <div class="week-bar" style="width:22.2%; margin-left:38.8%; background:rgba(255,215,0,0.25); color:var(--yellow);">Sticker System</div>
+          </div>
+        </div>
+        <div class="week-row">
+          <div class="week-label">Wks 12–15</div>
+          <div class="week-bar-wrap">
+            <div class="week-bar" style="width:22.2%; margin-left:61%; background:rgba(255,71,87,0.25); color:var(--red);">FFmpeg Export</div>
+          </div>
+        </div>
+        <div class="week-row">
+          <div class="week-label">Wks 16–18</div>
+          <div class="week-bar-wrap">
+            <div class="week-bar" style="width:16.6%; margin-left:83.4%; background:rgba(255,255,255,0.1); color:var(--text-dim);">QA + Launch</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cost -->
+    <div class="flow-section-title">Cost Estimate</div>
+    <div class="cost-row" style="margin-bottom:24px;">
+      <div class="cost-card">
+        <div class="cost-tier">MVP</div>
+        <div class="cost-price">$15k <span>– $40k</span></div>
+        <div class="cost-items">
+          <div class="cost-item">Core video import + playback</div>
+          <div class="cost-item">Basic stopwatch stickers</div>
+          <div class="cost-item">FFmpeg export pipeline</div>
+          <div class="cost-item">iOS + Android release</div>
+        </div>
+      </div>
+      <div class="cost-card featured">
+        <div class="cost-tier">Full Version</div>
+        <div class="cost-price">$50k <span>– $120k</span></div>
+        <div class="cost-items">
+          <div class="cost-item">Everything in MVP</div>
+          <div class="cost-item">Cloud sync + team accounts</div>
+          <div class="cost-item">AI stride analysis</div>
+          <div class="cost-item">Velocity charts + comparison</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Future features -->
+    <div class="flow-section-title">Future Features</div>
+    <div class="future-chips">
+      <div class="future-chip"><span class="chip-icon">🤖</span> AI Stride Analysis</div>
+      <div class="future-chip"><span class="chip-icon">📈</span> Velocity Charts</div>
+      <div class="future-chip"><span class="chip-icon">⚡</span> Side-by-Side Compare</div>
+      <div class="future-chip"><span class="chip-icon">👥</span> Team Accounts</div>
+      <div class="future-chip"><span class="chip-icon">☁️</span> Cloud Sync</div>
+      <div class="future-chip"><span class="chip-icon">📊</span> Analytics Dashboard</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+  const screenCount = 5;
+
+  function showScreen(idx) {
+    for (let i = 0; i < screenCount; i++) {
+      document.getElementById('ps-' + i).classList.toggle('active', i === idx);
+    }
+    document.querySelectorAll('.screen-tab').forEach((t, i) => {
+      t.classList.toggle('active', i === idx);
+    });
+    for (let i = 0; i < screenCount; i++) {
+      document.getElementById('fs-' + i).classList.toggle('active', i === idx);
+    }
+  }
+
+  // ── Video upload ──────────────────────────────────────────────
+  const video = document.getElementById('mainVideo');
+  const fileInput = document.getElementById('videoFileInput');
+  const importDrop = document.querySelector('.import-drop');
+
+  function loadVideoFile(file) {
+    if (!file || !file.type.startsWith('video/')) return;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    video.load();
+    showScreen(2);
+  }
+
+  // Click on drop zone → open file picker
+  importDrop.addEventListener('click', () => fileInput.click());
+
+  // File picker selection
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) loadVideoFile(fileInput.files[0]);
+  });
+
+  // Drag-and-drop onto import zone
+  importDrop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    importDrop.style.borderColor = 'var(--green)';
+  });
+  importDrop.addEventListener('dragleave', () => {
+    importDrop.style.borderColor = '';
+  });
+  importDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    importDrop.style.borderColor = '';
+    if (e.dataTransfer.files.length) loadVideoFile(e.dataTransfer.files[0]);
+  });
+
+  // ── Play / Pause ──────────────────────────────────────────────
+  const playBtn = document.querySelector('.ctrl-play');
+  playBtn.addEventListener('click', () => {
+    if (!video.src) return;
+    if (video.paused) {
+      video.play();
+      playBtn.textContent = '⏸';
+    } else {
+      video.pause();
+      playBtn.textContent = '▶';
+    }
+  });
+  video.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+
+  // ── Scrubber ──────────────────────────────────────────────────
+  const scrubberWrap = document.querySelector('.scrubber-wrap');
+  const scrubberFill = document.querySelector('.scrubber-fill');
+  const scrubberThumb = document.querySelector('.scrubber-thumb');
+
+  video.addEventListener('timeupdate', () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    scrubberFill.style.width = pct + '%';
+    scrubberThumb.style.left = pct + '%';
+  });
+
+  function clientXFromEvent(e) {
+    return e.touches ? e.touches[0].clientX : e.clientX;
+  }
+
+  function seekFromEvent(e) {
+    if (!video.src || !video.duration) return;
+    const rect = scrubberWrap.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientXFromEvent(e) - rect.left) / rect.width));
+    video.currentTime = pct * video.duration;
+  }
+
+  let scrubbing = false;
+  scrubberWrap.addEventListener('mousedown', (e) => { scrubbing = true; seekFromEvent(e); });
+  window.addEventListener('mousemove', (e) => { if (scrubbing) seekFromEvent(e); });
+  window.addEventListener('mouseup', () => { scrubbing = false; });
+
+  // Touch support for scrubber (iPhone)
+  scrubberWrap.addEventListener('touchstart', (e) => { e.preventDefault(); scrubbing = true; seekFromEvent(e); }, { passive: false });
+  window.addEventListener('touchmove', (e) => { if (scrubbing) { e.preventDefault(); seekFromEvent(e); } }, { passive: false });
+  window.addEventListener('touchend', () => { scrubbing = false; });
+
+  // ── Quality chip toggle ───────────────────────────────────────
+  document.querySelectorAll('.q-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.q-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+
+  // ── Toggle switches ───────────────────────────────────────────
+  document.querySelectorAll('.toggle').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('off'));
+  });
+
+  // ── Tools panel toggle ────────────────────────────────────────
+  const toolsTabBtn = document.getElementById('toolsTabBtn');
+  const toolsPanel  = document.getElementById('toolsPanel');
+
+  toolsTabBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = toolsPanel.classList.toggle('hidden');
+    toolsTabBtn.classList.toggle('active', !isHidden);
+  });
+
+  // ── Split clocks ──────────────────────────────────────────────
+  const viewport = document.getElementById('videoViewport');
+  let clockIdCounter = 0;
+
+  document.getElementById('splitBtn').addEventListener('click', () => {
+    addSplitClock();
+  });
+
+  function addSplitClock() {
+    const id = ++clockIdCounter;
+    const startTime = Date.now();
+
+    const clock = document.createElement('div');
+    clock.className = 'split-clock';
+    clock.id = 'clock-' + id;
+
+    // Place in center of viewport, offset each new clock slightly
+    const offset = (id - 1) * 22;
+    const vRect = viewport.getBoundingClientRect();
+    clock.style.left = (vRect.width  / 2 - 44 + offset) + 'px';
+    clock.style.top  = (vRect.height / 2 - 24 + offset) + 'px';
+
+    clock.innerHTML = `
+      <div class="split-clock-inner">
+        <div class="split-clock-time">0:00</div>
+        <div class="split-clock-ms">.000</div>
+      </div>
+      <div class="split-clock-delete">✕</div>
+    `;
+
+    // Delete
+    clock.querySelector('.split-clock-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      clock.remove();
+    });
+
+    // Drag
+    makeDraggable(clock, viewport);
+
+    viewport.appendChild(clock);
+
+    // Tick
+    const interval = setInterval(() => {
+      if (!document.body.contains(clock)) { clearInterval(interval); return; }
+      const elapsed  = Date.now() - startTime;
+      const ms       = elapsed % 1000;
+      const totalSec = Math.floor(elapsed / 1000);
+      const min      = Math.floor(totalSec / 60);
+      const sec      = totalSec % 60;
+      const timeStr  = min > 0
+        ? min + ':' + String(sec).padStart(2, '0')
+        : String(sec);
+      clock.querySelector('.split-clock-time').textContent = timeStr;
+      clock.querySelector('.split-clock-ms').textContent   = '.' + String(ms).padStart(3, '0');
+    }, 16);
+  }
+
+  function makeDraggable(el, container) {
+    let startCX, startCY, startLeft, startTop, dragging = false;
+
+    function down(e) {
+      if (e.target.classList.contains('split-clock-delete')) return;
+      if (e.touches && e.touches.length > 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragging  = true;
+      startCX   = e.touches ? e.touches[0].clientX : e.clientX;
+      startCY   = e.touches ? e.touches[0].clientY : e.clientY;
+      startLeft = parseInt(el.style.left) || 0;
+      startTop  = parseInt(el.style.top)  || 0;
+      el.style.zIndex = 50;
+    }
+
+    function move(e) {
+      if (!dragging) return;
+      if (e.touches && e.touches.length > 1) { dragging = false; return; }
+      e.preventDefault();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      el.style.left = (startLeft + cx - startCX) + 'px';
+      el.style.top  = (startTop  + cy - startCY) + 'px';
+    }
+
+    function up() { dragging = false; el.style.zIndex = 15; }
+
+    el.addEventListener('mousedown',  down);
+    el.addEventListener('touchstart', down, { passive: false });
+    document.addEventListener('mousemove',  move);
+    document.addEventListener('touchmove',  move, { passive: false });
+    document.addEventListener('mouseup',    up);
+    document.addEventListener('touchend',   up);
+  }
+
+  // ── Pinch-to-zoom on video viewport ──────────────────────────
+  const zoomLayer = document.getElementById('videoZoomLayer');
+  let zoomScale = 1, pinchStartDist = null, pinchStartScale = 1;
+
+  function pinchDist(touches) {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  }
+
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      pinchStartDist  = pinchDist(e.touches);
+      pinchStartScale = zoomScale;
+    }
+  }, { passive: true });
+
+  viewport.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || pinchStartDist === null) return;
+    e.preventDefault();
+    zoomScale = Math.max(1, Math.min(6, pinchStartScale * (pinchDist(e.touches) / pinchStartDist)));
+    zoomLayer.style.transform = `scale(${zoomScale})`;
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      pinchStartDist = null;
+      if (zoomScale <= 1.05) {
+        zoomScale = 1;
+        zoomLayer.style.transform = 'scale(1)';
+      }
+    }
+  }, { passive: true });
+</script>
+</body>
+</html>
