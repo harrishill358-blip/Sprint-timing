@@ -2152,15 +2152,17 @@
         video.removeEventListener('timeupdate', updateSplitDisplay);
         return;
       }
-      const elapsed  = Math.max(0, video.currentTime - splitVideoTime);
-      const totalMs  = Math.round(elapsed * 1000);
-      const ms       = totalMs % 1000;
-      const totalSec = Math.floor(totalMs / 1000);
+      const delta    = video.currentTime - splitVideoTime;
+      const negative = delta < 0;
+      const absMs    = Math.round(Math.abs(delta) * 1000);
+      const ms       = absMs % 1000;
+      const totalSec = Math.floor(absMs / 1000);
       const min      = Math.floor(totalSec / 60);
       const sec      = totalSec % 60;
+      const sign     = negative ? '-' : '';
       const timeStr  = min > 0
-        ? min + ':' + String(sec).padStart(2, '0')
-        : String(sec);
+        ? sign + min + ':' + String(sec).padStart(2, '0')
+        : sign + String(sec);
       clock.querySelector('.split-clock-time').textContent = timeStr;
       clock.querySelector('.split-clock-ms').textContent   = '.' + String(ms).padStart(3, '0');
     }
