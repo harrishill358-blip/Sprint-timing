@@ -377,7 +377,7 @@
   #videoZoomLayer {
     position: absolute;
     inset: 0;
-    transform-origin: center center;
+    transform-origin: 0 0;
     will-change: transform;
   }
   #videoZoomLayer video {
@@ -1364,7 +1364,10 @@
   }
 
   // ── Pinch-to-zoom on video viewport ──────────────────────────
-  let zoomScale = 1, pinchStartDist = null, pinchStartScale = 1;
+  let zoomScale = 1, zoomTx = 0, zoomTy = 0;
+  let pinchStartDist = null, pinchStartScale = 1;
+  let pinchContentX = 0, pinchContentY = 0;
+  let panStartX = null, panStartY = null, panStartTx = 0, panStartTy = 0;
 
   function pinchDist(touches) {
     return Math.hypot(
@@ -1373,26 +1376,66 @@
     );
   }
 
+  function applyZoomTransform() {
+    zoomLayer.style.transform = `translate(${zoomTx}px, ${zoomTy}px) scale(${zoomScale})`;
+  }
+
+  function clampTx(tx, scale, vpW) { return Math.max(vpW * (1 - scale), Math.min(0, tx)); }
+  function clampTy(ty, scale, vpH) { return Math.max(vpH * (1 - scale), Math.min(0, ty)); }
+
   viewport.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
+      e.preventDefault();
       pinchStartDist  = pinchDist(e.touches);
       pinchStartScale = zoomScale;
+      const vpRect = viewport.getBoundingClientRect();
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - vpRect.left;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - vpRect.top;
+      // Record content-space coordinate under the pinch midpoint
+      pinchContentX = (mx - zoomTx) / zoomScale;
+      pinchContentY = (my - zoomTy) / zoomScale;
+      panStartX = null;
+    } else if (e.touches.length === 1 && zoomScale > 1) {
+      pinchStartDist = null;
+      if (!e.target.closest('.sticker-clock')) {
+        panStartX  = e.touches[0].clientX;
+        panStartY  = e.touches[0].clientY;
+        panStartTx = zoomTx;
+        panStartTy = zoomTy;
+      }
     }
-  }, { passive: true });
+  }, { passive: false });
 
   viewport.addEventListener('touchmove', (e) => {
-    if (e.touches.length !== 2 || pinchStartDist === null) return;
-    e.preventDefault();
-    zoomScale = Math.max(1, Math.min(6, pinchStartScale * (pinchDist(e.touches) / pinchStartDist)));
-    zoomLayer.style.transform = `scale(${zoomScale})`;
+    if (e.touches.length === 2 && pinchStartDist !== null) {
+      e.preventDefault();
+      const newScale = Math.max(1, Math.min(6, pinchStartScale * (pinchDist(e.touches) / pinchStartDist)));
+      const vpRect = viewport.getBoundingClientRect();
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - vpRect.left;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - vpRect.top;
+      // Keep the pinch focal point fixed in the viewport
+      let newTx = mx - pinchContentX * newScale;
+      let newTy = my - pinchContentY * newScale;
+      newTx = clampTx(newTx, newScale, vpRect.width);
+      newTy = clampTy(newTy, newScale, vpRect.height);
+      zoomScale = newScale; zoomTx = newTx; zoomTy = newTy;
+      applyZoomTransform();
+    } else if (e.touches.length === 1 && panStartX !== null && zoomScale > 1) {
+      e.preventDefault();
+      const vpRect = viewport.getBoundingClientRect();
+      zoomTx = clampTx(panStartTx + (e.touches[0].clientX - panStartX), zoomScale, vpRect.width);
+      zoomTy = clampTy(panStartTy + (e.touches[0].clientY - panStartY), zoomScale, vpRect.height);
+      applyZoomTransform();
+    }
   }, { passive: false });
 
   viewport.addEventListener('touchend', (e) => {
-    if (e.touches.length < 2) {
-      pinchStartDist = null;
+    if (e.touches.length < 2) pinchStartDist = null;
+    if (e.touches.length < 1) {
+      panStartX = null;
       if (zoomScale <= 1.05) {
-        zoomScale = 1;
-        zoomLayer.style.transform = 'scale(1)';
+        zoomScale = 1; zoomTx = 0; zoomTy = 0;
+        applyZoomTransform();
       }
     }
   }, { passive: true });
