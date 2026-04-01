@@ -487,6 +487,31 @@
     cursor: pointer;
     color: #000;
   }
+  .speed-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 0 2px;
+  }
+  .speed-btn {
+    padding: 4px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    transition: all 0.15s;
+    white-space: nowrap;
+    letter-spacing: -0.2px;
+  }
+  .speed-btn.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+  }
 
   /* Tools tab button */
   .tools-tab-btn {
@@ -982,6 +1007,13 @@
             <div class="ctrl-btn">⏩</div>
             <div class="ctrl-btn">⏭</div>
           </div>
+          <div class="speed-row" id="speedRow">
+            <button class="speed-btn" data-rate="0.125">⅛×</button>
+            <button class="speed-btn" data-rate="0.25">¼×</button>
+            <button class="speed-btn" data-rate="0.5">½×</button>
+            <button class="speed-btn active" data-rate="1">1×</button>
+            <button class="speed-btn" data-rate="2">2×</button>
+          </div>
         </div>
       </div>
 
@@ -1144,35 +1176,83 @@
 
   // ── Scrubber ──────────────────────────────────────────────────
   const scrubberWrap  = document.querySelector('.scrubber-wrap');
+  const scrubberTrack = document.querySelector('.scrubber-track');
   const scrubberFill  = document.querySelector('.scrubber-fill');
   const scrubberThumb = document.querySelector('.scrubber-thumb');
 
-  video.addEventListener('timeupdate', () => {
-    if (!video.duration) return;
-    const pct = (video.currentTime / video.duration) * 100;
-    scrubberFill.style.width  = pct + '%';
-    scrubberThumb.style.left  = pct + '%';
+  function setScrubberPct(pct) {
+    const p = Math.max(0, Math.min(1, pct));
+    scrubberFill.style.width = (p * 100) + '%';
+    scrubberThumb.style.left = (p * 100) + '%';
+  }
+
+  let rafId = null;
+  function startRaf() {
+    if (rafId) return;
+    function loop() {
+      if (video.duration) setScrubberPct(video.currentTime / video.duration);
+      rafId = requestAnimationFrame(loop);
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+  function stopRaf() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  video.addEventListener('play',  startRaf);
+  video.addEventListener('pause', stopRaf);
+  video.addEventListener('ended', stopRaf);
+  video.addEventListener('seeked', () => {
+    if (video.paused && video.duration) setScrubberPct(video.currentTime / video.duration);
   });
 
   function clientXFromEvent(e) {
     return e.touches ? e.touches[0].clientX : e.clientX;
   }
 
+  function pctFromEvent(e) {
+    const rect = scrubberTrack.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientXFromEvent(e) - rect.left) / rect.width));
+  }
+
   function seekFromEvent(e) {
     if (!video.src || !video.duration) return;
-    const rect = scrubberWrap.getBoundingClientRect();
-    const pct  = Math.max(0, Math.min(1, (clientXFromEvent(e) - rect.left) / rect.width));
+    const pct = pctFromEvent(e);
+    setScrubberPct(pct);
     video.currentTime = pct * video.duration;
   }
 
   let scrubbing = false;
-  scrubberWrap.addEventListener('mousedown', (e) => { scrubbing = true; seekFromEvent(e); });
+  scrubberWrap.addEventListener('mousedown', (e) => {
+    scrubbing = true; stopRaf(); seekFromEvent(e);
+  });
   window.addEventListener('mousemove', (e) => { if (scrubbing) seekFromEvent(e); });
-  window.addEventListener('mouseup',   () => { scrubbing = false; });
+  window.addEventListener('mouseup', () => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    if (!video.paused) startRaf();
+  });
 
-  scrubberWrap.addEventListener('touchstart', (e) => { e.preventDefault(); scrubbing = true; seekFromEvent(e); }, { passive: false });
-  window.addEventListener('touchmove', (e) => { if (scrubbing) { e.preventDefault(); seekFromEvent(e); } }, { passive: false });
-  window.addEventListener('touchend',  () => { scrubbing = false; });
+  scrubberWrap.addEventListener('touchstart', (e) => {
+    e.preventDefault(); scrubbing = true; stopRaf(); seekFromEvent(e);
+  }, { passive: false });
+  window.addEventListener('touchmove', (e) => {
+    if (scrubbing) { e.preventDefault(); seekFromEvent(e); }
+  }, { passive: false });
+  window.addEventListener('touchend', () => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    if (!video.paused) startRaf();
+  });
+
+  // ── Playback speed ────────────────────────────────────────────
+  document.getElementById('speedRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.speed-btn');
+    if (!btn) return;
+    const rate = parseFloat(btn.dataset.rate);
+    video.playbackRate = rate;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
 
   // ── Toggle switches ───────────────────────────────────────────
   document.querySelectorAll('.toggle').forEach(t => {
