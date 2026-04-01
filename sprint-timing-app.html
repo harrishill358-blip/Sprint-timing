@@ -2103,21 +2103,18 @@
     return base + '.' + String(ms).padStart(3, '0');
   }
 
-  function updateCurrentTimeLabel() {
-    currentTimeLabel.textContent = formatVideoTime(video.currentTime);
-  }
-
   video.addEventListener('loadedmetadata', () => {
-    durationLabel.textContent = formatVideoTime(video.duration);
+    durationLabel.textContent    = formatVideoTime(video.duration);
     currentTimeLabel.textContent = formatVideoTime(0);
   });
 
-  // Update thumb/fill and time label immediately without waiting for timeupdate
+  // Update thumb/fill and time label — derive time from pct so the label is
+  // always accurate even when called before video.currentTime is updated.
   function setScrubberPct(pct) {
     const p = Math.max(0, Math.min(1, pct));
     scrubberFill.style.width  = (p * 100) + '%';
     scrubberThumb.style.left  = (p * 100) + '%';
-    updateCurrentTimeLabel();
+    if (video.duration) currentTimeLabel.textContent = formatVideoTime(p * video.duration);
   }
 
   // Use rAF loop during playback for smooth, high-frequency updates

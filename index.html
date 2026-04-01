@@ -1180,10 +1180,31 @@
   const scrubberFill  = document.querySelector('.scrubber-fill');
   const scrubberThumb = document.querySelector('.scrubber-thumb');
 
+  const currentTimeLabel = document.getElementById('currentTimeLabel');
+  const durationLabel    = document.getElementById('durationLabel');
+
+  function formatVideoTime(secs) {
+    if (!isFinite(secs) || secs < 0) secs = 0;
+    const ms       = Math.floor((secs % 1) * 1000);
+    const totalSec = Math.floor(secs);
+    const min      = Math.floor(totalSec / 60);
+    const sec      = totalSec % 60;
+    const base     = min > 0
+      ? min + ':' + String(sec).padStart(2, '0')
+      : String(sec);
+    return base + '.' + String(ms).padStart(3, '0');
+  }
+
+  video.addEventListener('loadedmetadata', () => {
+    durationLabel.textContent    = formatVideoTime(video.duration);
+    currentTimeLabel.textContent = formatVideoTime(0);
+  });
+
   function setScrubberPct(pct) {
     const p = Math.max(0, Math.min(1, pct));
     scrubberFill.style.width = (p * 100) + '%';
     scrubberThumb.style.left = (p * 100) + '%';
+    if (video.duration) currentTimeLabel.textContent = formatVideoTime(p * video.duration);
   }
 
   let rafId = null;
@@ -1279,9 +1300,9 @@
   });
 
   function addSplitClock() {
-    const id        = ++clockIdCounter;
-    const startTime = Date.now();
-    const offset    = (id - 1) * 22;
+    const id             = ++clockIdCounter;
+    const splitVideoTime = video.currentTime; // anchor to current video position
+    const offset         = (id - 1) * 22;
 
     const clock = document.createElement('div');
     clock.className = 'split-clock';
@@ -1310,20 +1331,31 @@
     // Append to zoom layer so clock scales with pinch-to-zoom
     zoomLayer.appendChild(clock);
 
-    // Tick
-    const interval = setInterval(() => {
-      if (!document.body.contains(clock)) { clearInterval(interval); return; }
-      const elapsed  = Date.now() - startTime;
-      const ms       = elapsed % 1000;
-      const totalSec = Math.floor(elapsed / 1000);
+    // Update display whenever video position changes (scrub or play)
+    function updateSplitDisplay() {
+      if (!document.body.contains(clock)) {
+        video.removeEventListener('timeupdate', updateSplitDisplay);
+        video.removeEventListener('seeking',    updateSplitDisplay);
+        return;
+      }
+      const delta    = video.currentTime - splitVideoTime;
+      const negative = delta < 0;
+      const absMs    = Math.round(Math.abs(delta) * 1000);
+      const ms       = absMs % 1000;
+      const totalSec = Math.floor(absMs / 1000);
       const min      = Math.floor(totalSec / 60);
       const sec      = totalSec % 60;
+      const sign     = negative ? '-' : '';
       const timeStr  = min > 0
-        ? min + ':' + String(sec).padStart(2, '0')
-        : String(sec);
+        ? sign + min + ':' + String(sec).padStart(2, '0')
+        : sign + String(sec);
       clock.querySelector('.split-clock-time').textContent = timeStr;
       clock.querySelector('.split-clock-ms').textContent   = '.' + String(ms).padStart(3, '0');
-    }, 16);
+    }
+
+    video.addEventListener('timeupdate', updateSplitDisplay);
+    video.addEventListener('seeking',    updateSplitDisplay);
+    updateSplitDisplay();
   }
 
   function makeDraggable(el) {
