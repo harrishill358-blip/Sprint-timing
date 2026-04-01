@@ -570,35 +570,44 @@
   }
   .scrubber-wrap {
     position: relative;
-    height: 32px;
+    height: 36px;
     margin-bottom: 8px;
+    cursor: pointer;
   }
   .scrubber-track {
     position: absolute;
     top: 50%;
     left: 0; right: 0;
-    height: 4px;
-    background: var(--surface3);
+    height: 3px;
+    background: rgba(255,255,255,0.18);
     border-radius: 2px;
     transform: translateY(-50%);
   }
   .scrubber-fill {
     position: absolute;
     top: 0; left: 0;
-    width: 35%;
+    width: 0%;
     height: 100%;
-    background: var(--green);
+    background: #fff;
     border-radius: 2px;
   }
   .scrubber-thumb {
     position: absolute;
     top: 50%;
-    left: 35%;
+    left: 0%;
     width: 14px; height: 14px;
-    background: var(--text);
+    background: #fff;
     border-radius: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+    transition: width 0.12s ease, height 0.12s ease, box-shadow 0.12s ease;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+    cursor: grab;
+    z-index: 2;
+  }
+  .scrubber-thumb.active {
+    width: 22px; height: 22px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.55);
+    cursor: grabbing;
   }
   .seg-tick {
     position: absolute;
@@ -2065,14 +2074,14 @@
   }
 
   let scrubbing = false;
-  scrubberWrap.addEventListener('mousedown', (e) => { scrubbing = true; seekFromEvent(e); });
+  scrubberWrap.addEventListener('mousedown', (e) => { scrubbing = true; scrubberThumb.classList.add('active'); seekFromEvent(e); });
   window.addEventListener('mousemove', (e) => { if (scrubbing) seekFromEvent(e); });
-  window.addEventListener('mouseup', () => { scrubbing = false; });
+  window.addEventListener('mouseup', () => { scrubbing = false; scrubberThumb.classList.remove('active'); });
 
   // Touch support for scrubber (iPhone)
-  scrubberWrap.addEventListener('touchstart', (e) => { e.preventDefault(); scrubbing = true; seekFromEvent(e); }, { passive: false });
+  scrubberWrap.addEventListener('touchstart', (e) => { e.preventDefault(); scrubbing = true; scrubberThumb.classList.add('active'); seekFromEvent(e); }, { passive: false });
   window.addEventListener('touchmove', (e) => { if (scrubbing) { e.preventDefault(); seekFromEvent(e); } }, { passive: false });
-  window.addEventListener('touchend', () => { scrubbing = false; });
+  window.addEventListener('touchend', () => { scrubbing = false; scrubberThumb.classList.remove('active'); });
 
   // ── Quality chip toggle ───────────────────────────────────────
   document.querySelectorAll('.q-chip').forEach(chip => {
@@ -2107,7 +2116,7 @@
 
   function addSplitClock() {
     const id = ++clockIdCounter;
-    const startTime = Date.now();
+    const splitVideoTime = video.currentTime; // anchor to current scrubber position
 
     const clock = document.createElement('div');
     clock.className = 'split-clock';
@@ -2135,15 +2144,18 @@
 
     // Drag
     makeDraggable(clock, viewport);
-
     viewport.appendChild(clock);
 
-    // Tick
-    const interval = setInterval(() => {
-      if (!document.body.contains(clock)) { clearInterval(interval); return; }
-      const elapsed  = Date.now() - startTime;
-      const ms       = elapsed % 1000;
-      const totalSec = Math.floor(elapsed / 1000);
+    // Update display whenever the video position changes (scrub or play)
+    function updateSplitDisplay() {
+      if (!document.body.contains(clock)) {
+        video.removeEventListener('timeupdate', updateSplitDisplay);
+        return;
+      }
+      const elapsed  = Math.max(0, video.currentTime - splitVideoTime);
+      const totalMs  = Math.round(elapsed * 1000);
+      const ms       = totalMs % 1000;
+      const totalSec = Math.floor(totalMs / 1000);
       const min      = Math.floor(totalSec / 60);
       const sec      = totalSec % 60;
       const timeStr  = min > 0
@@ -2151,7 +2163,10 @@
         : String(sec);
       clock.querySelector('.split-clock-time').textContent = timeStr;
       clock.querySelector('.split-clock-ms').textContent   = '.' + String(ms).padStart(3, '0');
-    }, 16);
+    }
+
+    video.addEventListener('timeupdate', updateSplitDisplay);
+    updateSplitDisplay(); // render immediately
   }
 
   function makeDraggable(el, container) {
