@@ -1149,6 +1149,135 @@
   }
   .future-chip .chip-icon { font-size: 16px; }
 
+  /* ======================== VIDEO ZOOM LAYER ======================== */
+  #videoZoomLayer {
+    position: absolute;
+    inset: 0;
+    transform-origin: center center;
+    will-change: transform;
+  }
+  #videoZoomLayer video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* Tools tab button */
+  .tools-tab-btn {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 22px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    letter-spacing: 0.3px;
+  }
+  .tools-tab-btn.active {
+    background: var(--green);
+    color: #000;
+    border-color: var(--green);
+  }
+
+  /* Tools panel */
+  .tools-panel {
+    position: absolute;
+    bottom: 54px;
+    right: 14px;
+    background: rgba(10,10,10,0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 10px;
+    z-index: 20;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 110px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .tools-panel.hidden { display: none; }
+
+  /* Split button */
+  .split-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: transform 0.1s;
+    white-space: nowrap;
+  }
+  .split-btn:active { transform: scale(0.95); }
+
+  /* Split clock overlay */
+  .split-clock {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+    z-index: 15;
+  }
+  .split-clock-inner {
+    background: rgba(0,0,0,0.72);
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 10px;
+    padding: 6px 10px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.7);
+  }
+  .split-clock-time {
+    font-size: 20px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+    color: #fff;
+    text-shadow:
+      0 0 8px rgba(0,0,0,1),
+      0 1px 4px rgba(0,0,0,1),
+      -1px 0 3px rgba(0,0,0,1),
+       1px 0 3px rgba(0,0,0,1);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .split-clock-ms {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,1);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .split-clock-delete {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 18px; height: 18px;
+    background: #FF4757;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: white;
+    cursor: pointer;
+    font-weight: 900;
+    z-index: 16;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    line-height: 1;
+  }
+
   /* Animations */
   @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -1429,7 +1558,7 @@
         </div>
       </div>
 
-      <!-- SCREEN 3: STICKER EDITOR -->
+      <!-- SCREEN 3: VIDEO EDITOR -->
       <div class="phone-screen s3" id="ps-2">
         <div class="status-bar" style="background:#000; padding-top:4px;">
           <span class="status-time">9:41</span>
@@ -1437,36 +1566,27 @@
         </div>
         <div class="nav-header" style="background:#000; padding-bottom:6px;">
           <div class="back-btn" onclick="showScreen(1)" style="background:#111; border-color:#333;">‹</div>
-          <div class="nav-title">Add Stickers</div>
+          <div class="nav-title">Video Editor</div>
           <button onclick="showScreen(3)" style="margin-left:auto; background:var(--green); color:#000; border:none; border-radius:10px; padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer;">Next →</button>
         </div>
 
         <!-- Video area -->
-        <div class="video-viewport">
-          <video id="mainVideo" style="width:100%;height:100%;object-fit:contain;background:#000;" playsinline></video>
+        <div class="video-viewport" id="videoViewport">
+          <!-- Zoomable video layer -->
+          <div id="videoZoomLayer">
+            <video id="mainVideo" playsinline></video>
+          </div>
 
           <div class="fps-badge pulse">240 FPS</div>
           <div class="rec-badge"><div class="rec-dot blink"></div>4K</div>
 
-          <!-- Sticker 1 -->
-          <div class="sticker sticker1" id="sticker1">
-            <div class="sticker-handle">✦</div>
-            <div class="sticker-label">Reaction</div>
-            <div class="sticker-time">0:00</div>
-            <div class="sticker-ms">.000</div>
-          </div>
+          <!-- Tools toggle button (always visible, outside zoom layer) -->
+          <button class="tools-tab-btn" id="toolsTabBtn">⚙ Tools</button>
 
-          <!-- Sticker 2 -->
-          <div class="sticker sticker2" id="sticker2" style="border-color:var(--yellow); box-shadow:0 4px 20px rgba(255,215,0,0.25);">
-            <div class="sticker-handle" style="background:var(--yellow);">✦</div>
-            <div class="sticker-label" style="color:var(--yellow);">Finish</div>
-            <div class="sticker-time">9:87</div>
-            <div class="sticker-ms" style="color:var(--yellow);">.452</div>
+          <!-- Tools panel (hidden by default) -->
+          <div class="tools-panel hidden" id="toolsPanel">
+            <button class="split-btn" id="splitBtn">✂ Split</button>
           </div>
-
-          <!-- Segment marker line -->
-          <div class="seg-marker" style="left:35%;" data-label="START"></div>
-          <div class="seg-marker" style="left:72%; background:var(--yellow);" data-label="END"></div>
         </div>
 
         <!-- Video controls -->
@@ -1475,14 +1595,12 @@
             <div class="scrubber-track">
               <div class="scrubber-fill"></div>
             </div>
-            <div class="seg-tick" style="left:35%;"></div>
-            <div class="seg-tick" style="left:72%; background:var(--yellow);"></div>
             <div class="scrubber-thumb"></div>
           </div>
           <div class="time-labels">
             <span>0:00.000</span>
-            <span style="color:var(--green); font-weight:700;">0:03.452</span>
-            <span>0:09.870</span>
+            <span id="currentTimeLabel" style="color:var(--green); font-weight:700;">0:00.000</span>
+            <span id="durationLabel">0:00.000</span>
           </div>
           <div class="ctrl-row">
             <div class="ctrl-btn">⏮</div>
@@ -1491,15 +1609,6 @@
             <div class="ctrl-btn">⏩</div>
             <div class="ctrl-btn">⏭</div>
           </div>
-        </div>
-
-        <!-- Sticker toolbar -->
-        <div class="sticker-toolbar">
-          <div class="tool-chip active">⏱ Stopwatch</div>
-          <div class="tool-chip">🏁 Split</div>
-          <div class="tool-chip">📍 Marker</div>
-          <div class="tool-chip">📐 Distance</div>
-          <div class="tool-chip">🔢 Counter</div>
         </div>
       </div>
 
@@ -1965,17 +2074,6 @@
   window.addEventListener('touchmove', (e) => { if (scrubbing) { e.preventDefault(); seekFromEvent(e); } }, { passive: false });
   window.addEventListener('touchend', () => { scrubbing = false; });
 
-  // ── Idle stopwatch animation (screen 3) ──────────────────────
-  let ms = 0;
-  const s1 = document.querySelector('#sticker1 .sticker-time');
-  const s1ms = document.querySelector('#sticker1 .sticker-ms');
-  setInterval(() => {
-    ms = (ms + 17) % 1000;
-    if (document.getElementById('ps-2').classList.contains('active') && video.paused) {
-      s1ms.textContent = '.' + String(ms).padStart(3, '0');
-    }
-  }, 50);
-
   // ── Quality chip toggle ───────────────────────────────────────
   document.querySelectorAll('.q-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -1984,18 +2082,148 @@
     });
   });
 
-  // ── Tool chip toggle ──────────────────────────────────────────
-  document.querySelectorAll('.tool-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.tool-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-    });
-  });
-
   // ── Toggle switches ───────────────────────────────────────────
   document.querySelectorAll('.toggle').forEach(t => {
     t.addEventListener('click', () => t.classList.toggle('off'));
   });
+
+  // ── Tools panel toggle ────────────────────────────────────────
+  const toolsTabBtn = document.getElementById('toolsTabBtn');
+  const toolsPanel  = document.getElementById('toolsPanel');
+
+  toolsTabBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = toolsPanel.classList.toggle('hidden');
+    toolsTabBtn.classList.toggle('active', !isHidden);
+  });
+
+  // ── Split clocks ──────────────────────────────────────────────
+  const viewport = document.getElementById('videoViewport');
+  let clockIdCounter = 0;
+
+  document.getElementById('splitBtn').addEventListener('click', () => {
+    addSplitClock();
+  });
+
+  function addSplitClock() {
+    const id = ++clockIdCounter;
+    const startTime = Date.now();
+
+    const clock = document.createElement('div');
+    clock.className = 'split-clock';
+    clock.id = 'clock-' + id;
+
+    // Place in center of viewport, offset each new clock slightly
+    const offset = (id - 1) * 22;
+    const vRect = viewport.getBoundingClientRect();
+    clock.style.left = (vRect.width  / 2 - 44 + offset) + 'px';
+    clock.style.top  = (vRect.height / 2 - 24 + offset) + 'px';
+
+    clock.innerHTML = `
+      <div class="split-clock-inner">
+        <div class="split-clock-time">0:00</div>
+        <div class="split-clock-ms">.000</div>
+      </div>
+      <div class="split-clock-delete">✕</div>
+    `;
+
+    // Delete
+    clock.querySelector('.split-clock-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      clock.remove();
+    });
+
+    // Drag
+    makeDraggable(clock, viewport);
+
+    viewport.appendChild(clock);
+
+    // Tick
+    const interval = setInterval(() => {
+      if (!document.body.contains(clock)) { clearInterval(interval); return; }
+      const elapsed  = Date.now() - startTime;
+      const ms       = elapsed % 1000;
+      const totalSec = Math.floor(elapsed / 1000);
+      const min      = Math.floor(totalSec / 60);
+      const sec      = totalSec % 60;
+      const timeStr  = min > 0
+        ? min + ':' + String(sec).padStart(2, '0')
+        : String(sec);
+      clock.querySelector('.split-clock-time').textContent = timeStr;
+      clock.querySelector('.split-clock-ms').textContent   = '.' + String(ms).padStart(3, '0');
+    }, 16);
+  }
+
+  function makeDraggable(el, container) {
+    let startCX, startCY, startLeft, startTop, dragging = false;
+
+    function down(e) {
+      if (e.target.classList.contains('split-clock-delete')) return;
+      if (e.touches && e.touches.length > 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragging  = true;
+      startCX   = e.touches ? e.touches[0].clientX : e.clientX;
+      startCY   = e.touches ? e.touches[0].clientY : e.clientY;
+      startLeft = parseInt(el.style.left) || 0;
+      startTop  = parseInt(el.style.top)  || 0;
+      el.style.zIndex = 50;
+    }
+
+    function move(e) {
+      if (!dragging) return;
+      if (e.touches && e.touches.length > 1) { dragging = false; return; }
+      e.preventDefault();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      el.style.left = (startLeft + cx - startCX) + 'px';
+      el.style.top  = (startTop  + cy - startCY) + 'px';
+    }
+
+    function up() { dragging = false; el.style.zIndex = 15; }
+
+    el.addEventListener('mousedown',  down);
+    el.addEventListener('touchstart', down, { passive: false });
+    document.addEventListener('mousemove',  move);
+    document.addEventListener('touchmove',  move, { passive: false });
+    document.addEventListener('mouseup',    up);
+    document.addEventListener('touchend',   up);
+  }
+
+  // ── Pinch-to-zoom on video viewport ──────────────────────────
+  const zoomLayer = document.getElementById('videoZoomLayer');
+  let zoomScale = 1, pinchStartDist = null, pinchStartScale = 1;
+
+  function pinchDist(touches) {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  }
+
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      pinchStartDist  = pinchDist(e.touches);
+      pinchStartScale = zoomScale;
+    }
+  }, { passive: true });
+
+  viewport.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || pinchStartDist === null) return;
+    e.preventDefault();
+    zoomScale = Math.max(1, Math.min(6, pinchStartScale * (pinchDist(e.touches) / pinchStartDist)));
+    zoomLayer.style.transform = `scale(${zoomScale})`;
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      pinchStartDist = null;
+      if (zoomScale <= 1.05) {
+        zoomScale = 1;
+        zoomLayer.style.transform = 'scale(1)';
+      }
+    }
+  }, { passive: true });
 </script>
 </body>
 </html>
