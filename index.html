@@ -1429,7 +1429,7 @@
       panStartX = null;
     } else if (e.touches.length === 1 && zoomScale > 1) {
       pinchStartDist = null;
-      if (!e.target.closest('.sticker-clock')) {
+      if (!e.target.closest('.split-clock')) {
         panStartX  = e.touches[0].clientX;
         panStartY  = e.touches[0].clientY;
         panStartTx = zoomTx;
