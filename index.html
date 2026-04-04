@@ -1211,6 +1211,8 @@
     for (let i = 0; i < screenCount; i++) {
       document.getElementById('fs-' + i).classList.toggle('active', i === idx);
     }
+    // Resize annotation canvas whenever Player screen becomes visible
+    if (idx === 2) setTimeout(resizeAnnotationCanvas, 30);
   }
 
   // ── Video upload ──────────────────────────────────────────────
@@ -1220,9 +1222,11 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type.startsWith('video/')) return;
-    const url = URL.createObjectURL(file);
-    video.src = url;
+    // Revoke previous blob URL to avoid memory leak
+    if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
+    video.src = URL.createObjectURL(file);
     video.load();
+    playBtn.textContent = '▶';  // reset play button state
     showScreen(2);
   }
 
@@ -1239,8 +1243,9 @@
     e.preventDefault();
     importDrop.style.borderColor = 'var(--green)';
   });
-  importDrop.addEventListener('dragleave', () => {
-    importDrop.style.borderColor = '';
+  importDrop.addEventListener('dragleave', (e) => {
+    // Only clear border when leaving the drop zone itself, not a child element
+    if (!importDrop.contains(e.relatedTarget)) importDrop.style.borderColor = '';
   });
   importDrop.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -1437,8 +1442,9 @@
 
   annotationCanvas.addEventListener('mousedown',  annStart);
   annotationCanvas.addEventListener('touchstart', e => { e.preventDefault(); annStart(e); }, { passive: false });
-  annotationCanvas.addEventListener('mousemove',  annMove);
-  annotationCanvas.addEventListener('touchmove',  e => { if (isDrawing) { e.preventDefault(); annMove(e); } }, { passive: false });
+  // mousemove on window so strokes don't break when cursor briefly leaves the canvas
+  window.addEventListener('mousemove', e => { if (isDrawing) annMove(e); });
+  window.addEventListener('touchmove',  e => { if (isDrawing) { e.preventDefault(); annMove(e); } }, { passive: false });
   window.addEventListener('mouseup',  annEnd);
   window.addEventListener('touchend', annEnd);
 
@@ -1577,27 +1583,44 @@
 
   function drawAngleStroke(pts, color) {
     // pts[0]=vertex, pts[1]=first arm end, pts[2]=second arm end
+    actx.save();
     actx.strokeStyle = color;
     actx.fillStyle   = color;
     actx.lineWidth   = 2.5;
     actx.lineCap     = 'round';
+
+    // Draw the two arms from vertex
     actx.beginPath();
     actx.moveTo(pts[1].x, pts[1].y);
     actx.lineTo(pts[0].x, pts[0].y);
     actx.lineTo(pts[2].x, pts[2].y);
     actx.stroke();
+
     const a1 = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
     const a2 = Math.atan2(pts[2].y - pts[0].y, pts[2].x - pts[0].x);
     let deg  = Math.abs((a2 - a1) * 180 / Math.PI);
     if (deg > 180) deg = 360 - deg;
-    const arcR = 22;
+
+    // Draw the shorter arc between the two arms (anticlockwise when span > 180°)
+    const startAng = Math.min(a1, a2);
+    const endAng   = Math.max(a1, a2);
+    const ccw      = (endAng - startAng) > Math.PI;
+    const arcR     = 22;
     actx.beginPath();
-    actx.arc(pts[0].x, pts[0].y, arcR, Math.min(a1, a2), Math.max(a1, a2));
+    actx.arc(pts[0].x, pts[0].y, arcR, startAng, endAng, ccw);
     actx.stroke();
-    actx.font      = 'bold 11px -apple-system, sans-serif';
-    actx.fillStyle = color;
-    const midAng   = (a1 + a2) / 2;
-    actx.fillText(deg.toFixed(1) + '°', pts[0].x + (arcR + 14) * Math.cos(midAng) - 10, pts[0].y + (arcR + 14) * Math.sin(midAng) + 4);
+
+    // Degree label — placed along the bisector of the shorter arc
+    const midAng = ccw
+      ? startAng - (Math.PI * 2 - (endAng - startAng)) / 2
+      : (startAng + endAng) / 2;
+    actx.font = 'bold 11px -apple-system, sans-serif';
+    actx.fillText(
+      deg.toFixed(1) + '°',
+      pts[0].x + (arcR + 14) * Math.cos(midAng) - 10,
+      pts[0].y + (arcR + 14) * Math.sin(midAng) + 4
+    );
+    actx.restore();
   }
 
   // ── Split clocks (live inside zoom layer so they move with video) ──
