@@ -621,6 +621,11 @@
     user-select: none;
     touch-action: none;
     z-index: 15;
+    transform-origin: center;   /* scale from centre when pinch-resizing */
+  }
+  .split-clock.resizing .split-clock-inner {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px rgba(0,255,135,0.35), 0 2px 12px rgba(0,0,0,0.7);
   }
   .split-clock-inner {
     background: rgba(0,0,0,0.72);
@@ -1658,6 +1663,9 @@
     // Drag — delta divided by zoom scale so clocks track in video space
     makeDraggable(clock);
 
+    // Pinch-to-resize — two fingers on the clock changes its size
+    makePinchResizable(clock);
+
     // Append to zoom layer so clock scales with pinch-to-zoom
     zoomLayer.appendChild(clock);
 
@@ -1723,6 +1731,71 @@
     document.addEventListener('touchmove',  move, { passive: false });
     document.addEventListener('mouseup',    up);
     document.addEventListener('touchend',   up);
+  }
+
+  // ── Per-clock pinch-to-resize ────────────────────────────────
+  function makePinchResizable(el) {
+    let clockScale   = 1;
+    let pinchActive  = false;
+    let startDist    = 0;
+    let startScale   = 1;
+
+    function distBetween(touches) {
+      return Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      );
+    }
+
+    // Returns true if the touch point lands inside (or very near) the element
+    function touchOnEl(t) {
+      const r = el.getBoundingClientRect();
+      const pad = 20; // a little forgiveness around the edges
+      return t.clientX >= r.left - pad && t.clientX <= r.right  + pad &&
+             t.clientY >= r.top  - pad && t.clientY <= r.bottom + pad;
+    }
+
+    function applyClockScale() {
+      el.style.transform = `scale(${clockScale})`;
+    }
+
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length < 2) return;
+      // Only intercept if at least one finger is on this clock
+      if (!touchOnEl(e.touches[0]) && !touchOnEl(e.touches[1])) return;
+      e.preventDefault();
+      e.stopPropagation(); // stop viewport pinch-zoom from firing
+      pinchActive = true;
+      startDist   = distBetween(e.touches);
+      startScale  = clockScale;
+      el.classList.add('resizing');
+      el.style.zIndex = 50;
+    }, { passive: false });
+
+    el.addEventListener('touchmove', (e) => {
+      if (!pinchActive || e.touches.length < 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const newScale = startScale * (distBetween(e.touches) / startDist);
+      clockScale = Math.max(0.4, Math.min(4, newScale));
+      applyClockScale();
+    }, { passive: false });
+
+    el.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        pinchActive = false;
+        el.classList.remove('resizing');
+        el.style.zIndex = 15;
+      }
+    });
+
+    // Desktop: scroll wheel over the clock to resize
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clockScale = Math.max(0.4, Math.min(4, clockScale * (e.deltaY < 0 ? 1.1 : 0.9)));
+      applyClockScale();
+    }, { passive: false });
   }
 
   // ── Pinch-to-zoom on video viewport ──────────────────────────
