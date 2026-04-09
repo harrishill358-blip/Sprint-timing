@@ -1,0 +1,7 @@
+{
+  "speed": null,
+  "gct": null,
+  "stride": null,
+  "fetchedAt": null,
+  "error": "Waiting for first GitHub Actions fetch — check back in a few minutes or trigger the workflow manually from the Actions tab."
+}
