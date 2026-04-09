@@ -2,6 +2,6 @@
   "speed": null,
   "gct": null,
   "stride": null,
-  "fetchedAt": null,
-  "error": "Waiting for first GitHub Actions fetch — check back in a few minutes or trigger the workflow manually from the Actions tab."
+  "fetchedAt": "2026-04-09T21:06:09.430765+00:00",
+  "error": "Metrics not found in page \u2014 Stryd may have changed their page structure"
 }
