@@ -31,7 +31,7 @@ jobs:
             -H "Sec-Fetch-Mode: navigate" \
             -H "Sec-Fetch-Site: none" \
             --compressed -L \
-            "https://stryd.pro/9987769388")
+            "${{ vars.STRYD_SHARE_URL }}")
           echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
           echo "Stryd page returned HTTP $HTTP_CODE"
           if [ "$HTTP_CODE" != "200" ]; then

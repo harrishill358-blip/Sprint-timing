@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Running Metrics Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -140,7 +140,7 @@ function toast(msg) {
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 3000);
 }
-function showBanner(msg, type='error') { $banner.innerHTML=msg; $banner.className=`banner ${type} visible`; }
+function showBanner(msg, type='error') { $banner.textContent=msg; $banner.className=`banner ${type} visible`; }
 function hideBanner() { $banner.className='banner'; }
 
 function setCard(id, value, unit, sub, dec=2) {
