@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Running Metrics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0A0A0A;
+      --surface1: #141414;
+      --surface2: #1E1E1E;
+      --surface3: #282828;
+      --border:   #2A2A2A;
+      --green:    #00FF87;
+      --red:      #FF4757;
+      --white:    #FFFFFF;
+      --dim:      #888888;
+      --radius:   12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface1); position: sticky; top: 0; z-index: 10;
+    }
+    .header-left h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-left h1 span { color: var(--green); }
+    .last-updated { font-size: 11px; color: var(--dim); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-ghost { background: transparent; color: var(--dim); border: 1px solid var(--border); }
+
+    .poll-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+    .poll-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: background 0.3s; }
+    .poll-dot.active { background: var(--green); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+    .banner {
+      display: none; padding: 14px 18px; border-radius: var(--radius);
+      font-size: 13px; line-height: 1.7; margin-bottom: 20px;
+    }
+    .banner.error  { background: rgba(255,71,87,.12); border: 1px solid rgba(255,71,87,.3); color: #ff8a94; }
+    .banner.warn   { background: rgba(255,215,0,.08); border: 1px solid rgba(255,215,0,.25); color: #ffd700; }
+    .banner.info   { background: rgba(0,255,135,.08); border: 1px solid rgba(0,255,135,.25); color: var(--green); }
+    .banner.visible { display: block; }
+    .banner code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+    .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; }
+    @media(max-width:700px){ .cards { grid-template-columns: 1fr; } }
+    .card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--dim); margin-bottom: 10px; }
+    .card-value { font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+    .card-unit  { font-size: 14px; font-weight: 400; color: var(--dim); margin-left: 4px; }
+    .card-sub   { font-size: 11px; color: var(--dim); margin-top: 6px; }
+
+    .charts { display: flex; flex-direction: column; gap: 20px; }
+    .chart-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .chart-title { font-size: 13px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 16px; }
+    .chart-title span { color: var(--white); }
+    .chart-wrap { position: relative; height: 180px; }
+
+    #toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface3); border: 1px solid var(--border); color: var(--white);
+      padding: 12px 22px; border-radius: 30px; font-size: 13px; font-weight: 500;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      z-index: 100; white-space: nowrap; pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Running <span>Metrics</span></h1>
+    <div class="last-updated" id="last-updated">Loading…</div>
+  </div>
+  <div class="header-right">
+    <div class="poll-indicator">
+      <div class="poll-dot" id="poll-dot"></div>
+      <span id="poll-label">Syncing…</span>
+    </div>
+    <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="banner"></div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Speed</div>
+      <div class="card-value" id="val-speed">—<span class="card-unit">m/s</span></div>
+      <div class="card-sub" id="sub-speed"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ground Contact Time</div>
+      <div class="card-value" id="val-gct">—<span class="card-unit">ms</span></div>
+      <div class="card-sub" id="sub-gct"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Stride Length</div>
+      <div class="card-value" id="val-stride">—<span class="card-unit">m</span></div>
+      <div class="card-sub" id="sub-stride"></div>
+    </div>
+  </div>
+
+  <div id="charts-section" class="charts" style="display:none">
+    <div class="chart-card">
+      <div class="chart-title"><span>Speed</span> history · m/s</div>
+      <div class="chart-wrap"><canvas id="chart-speed"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Ground Contact Time</span> history · ms</div>
+      <div class="chart-wrap"><canvas id="chart-gct"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Stride Length</span> history · m</div>
+      <div class="chart-wrap"><canvas id="chart-stride"></canvas></div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const SHARE_URL  = 'https://stryd.pro/9987769388';
+const POLL_MS    = 10 * 60 * 1000;
+const LS_HISTORY = 'stryd_history';
+
+// CORS proxies tried in order — each fetches the page server-side,
+// bypassing both CORS and the mobile-browser redirect Stryd applies.
+const PROXIES = [
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+];
+
+let charts = {};
+
+const $banner    = document.getElementById('banner');
+const $pollDot   = document.getElementById('poll-dot');
+const $pollLabel = document.getElementById('poll-label');
+const $lastUpd   = document.getElementById('last-updated');
+const $charts    = document.getElementById('charts-section');
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showBanner(msg, type = 'error') {
+  $banner.innerHTML = msg;
+  $banner.className = `banner ${type} visible`;
+}
+
+function hideBanner() { $banner.className = 'banner'; }
+
+function setCard(id, value, unit, sub, decimals = 2) {
+  document.getElementById(`val-${id}`).innerHTML = value != null
+    ? `${(+value).toFixed(decimals)}<span class="card-unit">${unit}</span>`
+    : `—<span class="card-unit">${unit}</span>`;
+  document.getElementById(`sub-${id}`).textContent = sub || '';
+}
+
+function nowStr() {
+  return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Fetch via proxies (one at a time, stop on first success) ──
+async function fetchViaProxies() {
+  const errors = [];
+  for (const buildUrl of PROXIES) {
+    try {
+      const proxyUrl = buildUrl(SHARE_URL);
+      const res = await fetch(proxyUrl);
+      if (!res.ok) { errors.push(`${proxyUrl}: HTTP ${res.status}`); continue; }
+
+      const ct   = res.headers.get('content-type') || '';
+      let   html = '';
+
+      if (ct.includes('application/json')) {
+        // allorigins wraps in { contents: "..." }
+        const json = await res.json();
+        html = json.contents || json.body || JSON.stringify(json);
+      } else {
+        html = await res.text();
+      }
+
+      if (html && html.length > 200) return html;
+      errors.push(`${proxyUrl}: empty response`);
+    } catch (e) {
+      errors.push(e.message);
+    }
+  }
+  throw new Error('All proxies failed: ' + errors.join(' | '));
+}
+
+// ── Parse HTML for running metrics ───────────────────────────
+function extractFromHtml(html) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(html, 'text/html');
+
+  // Next.js embeds all page data in <script id="__NEXT_DATA__">
+  const nextEl = doc.getElementById('__NEXT_DATA__');
+  if (nextEl) {
+    try {
+      const nd = JSON.parse(nextEl.textContent);
+      const m  = findMetrics(nd);
+      if (m) return m;
+    } catch {}
+  }
+
+  // Fallback: any script tag containing the metric key names
+  for (const s of doc.querySelectorAll('script')) {
+    const t = s.textContent;
+    if (!t.includes('averageSpeed') && !t.includes('groundContactTime') && !t.includes('strideLength')) continue;
+
+    // Try to pull the first JSON object that contains a metric key
+    const jsonMatch = t.match(/\{[\s\S]*?"(?:averageSpeed|averageGroundTime|groundContactTime|averageStrideLength|strideLength)"[\s\S]*?\}/);
+    if (jsonMatch) { try { const m = findMetrics(JSON.parse(jsonMatch[0])); if (m) return m; } catch {} }
+
+    // window.VAR = { ... }
+    const assign = t.match(/window\.\w+\s*=\s*(\{[\s\S]+?\});/);
+    if (assign) { try { const m = findMetrics(JSON.parse(assign[1])); if (m) return m; } catch {} }
+  }
+
+  return null;
+}
+
+// Recursively walks any JSON object looking for the three metrics.
+function findMetrics(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 12) return null;
+
+  const keys   = Object.keys(obj);
+  const hasAny = keys.some(k => /speed|ground|gct|contact|stride/i.test(k));
+
+  if (hasAny) {
+    const result = {};
+
+    for (const k of keys) {
+      const lk = k.toLowerCase();
+      if (/avgspeed|averagespeed|avg_speed|^speed$/.test(lk) && obj[k] != null) {
+        const v = +obj[k];
+        if (v > 0 && v < 15) { result.speed = v; break; }   // already m/s
+        if (v > 100)          { result.speed = 1000 / v; break; } // s/km → m/s
+      }
+    }
+    for (const k of keys) {
+      if (/ground|gct|contact/i.test(k) && obj[k] != null) { result.gct = +obj[k]; break; }
+    }
+    for (const k of keys) {
+      if (/stride/i.test(k) && obj[k] != null) { result.stride = +obj[k]; break; }
+    }
+
+    if (result.speed != null || result.gct != null || result.stride != null) return result;
+  }
+
+  for (const k of keys) {
+    if (Array.isArray(obj[k])) {
+      for (const item of obj[k]) { const r = findMetrics(item, depth + 1); if (r) return r; }
+    } else if (obj[k] && typeof obj[k] === 'object') {
+      const r = findMetrics(obj[k], depth + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+// ── Charts ────────────────────────────────────────────────────
+const CHART_BASE = {
+  responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+  interaction: { mode: 'index', intersect: false },
+  plugins: { legend: { display: false }, tooltip: {
+    backgroundColor: '#1E1E1E', borderColor: '#2A2A2A', borderWidth: 1,
+    titleColor: '#888', bodyColor: '#FFF', padding: 10, callbacks: {}
+  }},
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#888', font: { size: 11 }, maxRotation: 0 } },
+    y: { grid: { color: 'rgba(255,255,255,.06)' }, ticks: { color: '#888', font: { size: 11 } } }
+  }
+};
+
+function makeChart(id, color, unit, decimals) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const cfg = JSON.parse(JSON.stringify(CHART_BASE));
+  cfg.plugins.tooltip.callbacks.label = c => ` ${c.parsed.y.toFixed(decimals)} ${unit}`;
+  cfg.scales.y.ticks.callback = v => v.toFixed(decimals);
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: color + '18',
+      borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: color,
+      tension: 0.35, fill: true }] },
+    options: cfg
+  });
+}
+
+function initCharts() {
+  charts.speed  = makeChart('chart-speed',  '#00FF87', 'm/s', 2);
+  charts.gct    = makeChart('chart-gct',    '#4A90E2', 'ms',  0);
+  charts.stride = makeChart('chart-stride', '#FFD700', 'm',   2);
+}
+
+function pushHistory(metrics) {
+  const h    = JSON.parse(localStorage.getItem(LS_HISTORY) || '[]');
+  const last = h[h.length - 1];
+  if (last && last.speed === metrics.speed && last.gct === metrics.gct && last.stride === metrics.stride) return h;
+  h.push({ ts: Date.now(), ...metrics });
+  if (h.length > 20) h.splice(0, h.length - 20);
+  localStorage.setItem(LS_HISTORY, JSON.stringify(h));
+  return h;
+}
+
+function renderHistory(h) {
+  if (h.length < 2) return;
+  $charts.style.display = 'flex';
+  const labels = h.map(e => new Date(e.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  const upd = (c, key) => { c.data.labels = labels; c.data.datasets[0].data = h.map(e => e[key] ?? null); c.update(); };
+  upd(charts.speed, 'speed'); upd(charts.gct, 'gct'); upd(charts.stride, 'stride');
+}
+
+// ── Main fetch ────────────────────────────────────────────────
+async function fetchData() {
+  $pollDot.classList.add('active');
+  $pollLabel.textContent = 'Fetching…';
+
+  try {
+    const html    = await fetchViaProxies();
+    const metrics = extractFromHtml(html);
+
+    if (metrics && (metrics.speed != null || metrics.gct != null || metrics.stride != null)) {
+      hideBanner();
+      const label = 'stryd.pro/9987769388';
+      setCard('speed',  metrics.speed,  'm/s', label, 2);
+      setCard('gct',    metrics.gct,    'ms',  label, 0);
+      setCard('stride', metrics.stride, 'm',   label, 2);
+      renderHistory(pushHistory(metrics));
+      $lastUpd.textContent = `Last updated ${nowStr()}`;
+      $pollLabel.textContent = 'Polling every 10m';
+      toast('Data updated!');
+    } else {
+      // Page was fetched but metrics not found in the HTML structure.
+      // Show the raw page structure hint so we can tune the parser.
+      showBanner(
+        `Page loaded but metric fields not found in the page data.<br>` +
+        `This likely means Stryd uses a different JSON key name than expected — ` +
+        `open the browser console and check the logged page snippet to identify the correct keys.`,
+        'warn'
+      );
+      console.log('[Dashboard] Raw HTML snippet (first 4000 chars):', html.slice(0, 4000));
+      $pollLabel.textContent = 'Parse error';
+    }
+  } catch (err) {
+    showBanner(
+      `Could not load data from Stryd share link.<br>` +
+      `<strong>Error:</strong> ${err.message}`,
+      'error'
+    );
+    $pollLabel.textContent = 'Retry in 10m';
+    console.error('[Dashboard]', err);
+  } finally {
+    $pollDot.classList.remove('active');
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function init() {
+  initCharts();
+
+  const h = JSON.parse(localStorage.getItem(LS_HISTORY) || '[]');
+  if (h.length > 0) {
+    const last = h[h.length - 1];
+    setCard('speed',  last.speed,  'm/s', 'Cached — refreshing…', 2);
+    setCard('gct',    last.gct,    'ms',  'Cached — refreshing…', 0);
+    setCard('stride', last.stride, 'm',   'Cached — refreshing…', 2);
+    renderHistory(h);
+  }
+
+  fetchData();
+  setInterval(fetchData, POLL_MS);
+  document.getElementById('refresh-btn').addEventListener('click', () => { fetchData(); toast('Refreshing…'); });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
