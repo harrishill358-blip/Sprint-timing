@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src blob:; object-src 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SprintTime</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2038,10 +2039,18 @@
   const fileInput = document.getElementById('videoFileInput');
   const importDrop = document.querySelector('.import-drop');
 
+  const MAX_VIDEO_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
+  let currentBlobUrl = null;
+
   function loadVideoFile(file) {
     if (!file || !file.type.startsWith('video/')) return;
-    const url = URL.createObjectURL(file);
-    video.src = url;
+    if (file.size > MAX_VIDEO_BYTES) {
+      alert('File exceeds the 4 GB limit.');
+      return;
+    }
+    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = URL.createObjectURL(file);
+    video.src = currentBlobUrl;
     video.load();
     showScreen(2);
   }
@@ -2194,6 +2203,7 @@
     const btn = e.target.closest('.speed-btn');
     if (!btn) return;
     const rate = parseFloat(btn.dataset.rate);
+    if (!isFinite(rate) || rate <= 0) return;
     video.playbackRate = rate;
     document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
   });
@@ -2251,14 +2261,16 @@
       <div class="split-clock-delete">✕</div>
     `;
 
+    // Drag (capture cleanup before wiring delete, so unlisten is in scope)
+    const unlisten = makeDraggable(clock, viewport);
+
     // Delete
     clock.querySelector('.split-clock-delete').addEventListener('click', (e) => {
       e.stopPropagation();
+      unlisten();
       clock.remove();
     });
 
-    // Drag
-    makeDraggable(clock, viewport);
     viewport.appendChild(clock);
 
     // Update display whenever the video position changes (scrub or play)
@@ -2322,6 +2334,13 @@
     document.addEventListener('touchmove',  move, { passive: false });
     document.addEventListener('mouseup',    up);
     document.addEventListener('touchend',   up);
+
+    return function unlisten() {
+      document.removeEventListener('mousemove',  move);
+      document.removeEventListener('touchmove',  move);
+      document.removeEventListener('mouseup',    up);
+      document.removeEventListener('touchend',   up);
+    };
   }
 
   // ── Pinch-to-zoom on video viewport ──────────────────────────

@@ -5,11 +5,10 @@ on:
     - cron: '*/10 * * * *'   # every 10 minutes
   workflow_dispatch:           # allow manual trigger from Actions tab
 
-permissions:
-  contents: write
-
 jobs:
   fetch:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +19,9 @@ jobs:
       - name: Fetch Stryd share page
         id: fetch
         run: |
+          set -euo pipefail
           HTTP_CODE=$(curl -s -o page.html -w "%{http_code}" \
+            --max-time 30 \
             -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36" \
             -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8" \
             -H "Accept-Language: en-US,en;q=0.9" \
@@ -111,7 +112,7 @@ jobs:
                           if found:
                               result.update(found)
                               break
-                      except:
+                      except Exception:
                           pass
 
           if result['speed'] is None and result['gct'] is None and result['stride'] is None:
@@ -128,6 +129,7 @@ jobs:
 
       - name: Commit updated data
         run: |
+          set -euo pipefail
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git add sprint-dashboard/data.json
