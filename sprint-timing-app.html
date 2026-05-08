@@ -2324,6 +2324,62 @@
     document.addEventListener('touchend',   up);
   }
 
+  // ── Add Segment ───────────────────────────────────────────────
+  const segColors = [
+    { cssVar: 'var(--blue)',   hex: '#4A90E2', label: 'blue'   },
+    { cssVar: 'var(--green)',  hex: '#00FF87', label: 'green'  },
+    { cssVar: 'var(--yellow)', hex: '#FFD700', label: 'yellow' },
+    { cssVar: 'var(--red)',    hex: '#FF4757', label: 'red'    },
+    { cssVar: '#A855F7',       hex: '#A855F7', label: 'purple' },
+    { cssVar: '#F97316',       hex: '#F97316', label: 'orange' },
+  ];
+
+  const segNames = ['Reaction Time', 'Drive Phase', 'Max Velocity', 'Deceleration',
+                    'Acceleration', 'Cruise Phase', 'Transition', 'Custom Segment'];
+
+  document.querySelector('.add-seg-btn').addEventListener('click', () => {
+    const segsList = document.querySelector('.segs-list');
+    const existingItems = segsList.querySelectorAll('.seg-item');
+    const count = existingItems.length;
+
+    // Derive start time from last segment's end time
+    let startSec = 0;
+    if (count > 0) {
+      const lastRange = existingItems[count - 1].querySelector('.seg-range').textContent;
+      const endStr = lastRange.split('→')[1].trim(); // e.g. "0:09.870"
+      const parts = endStr.split(':');
+      const minPart = parseFloat(parts[0]);
+      const secPart = parseFloat(parts[1]);
+      startSec = minPart * 60 + secPart;
+    }
+
+    const defaultDuration = 1.0;
+    const endSec = startSec + defaultDuration;
+
+    const color = segColors[count % segColors.length];
+    const name  = count < segNames.length ? segNames[count] : 'Segment ' + (count + 1);
+
+    function fmtSec(s) {
+      const min = Math.floor(s / 60);
+      const sec = (s % 60).toFixed(3);
+      return min + ':' + String(sec).padStart(6, '0');
+    }
+
+    const item = document.createElement('div');
+    item.className = 'seg-item';
+    item.innerHTML = `
+      <div class="seg-color" style="background:${color.cssVar};"></div>
+      <div class="seg-info">
+        <div class="seg-name">${name}</div>
+        <div class="seg-range">${fmtSec(startSec)} → ${fmtSec(endSec)}</div>
+      </div>
+      <div>
+        <div class="seg-duration" style="color:${color.cssVar}">${defaultDuration.toFixed(3)}<small>s</small></div>
+      </div>
+    `;
+    segsList.appendChild(item);
+  });
+
   // ── Pinch-to-zoom on video viewport ──────────────────────────
   const zoomLayer = document.getElementById('videoZoomLayer');
   let zoomScale = 1, zoomTx = 0, zoomTy = 0;
