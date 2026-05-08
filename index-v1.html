@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="SprintTime">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0A0A0A">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22SprintTime%22,%22short_name%22:%22SprintTime%22,%22display%22:%22standalone%22,%22orientation%22:%22portrait%22,%22background_color%22:%22%230A0A0A%22,%22theme_color%22:%22%230A0A0A%22}">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1132,8 +1133,8 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type.startsWith('video/')) return;
-    const url = URL.createObjectURL(file);
-    video.src = url;
+    if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
+    video.src = URL.createObjectURL(file);
     video.load();
     showScreen(2);
   }

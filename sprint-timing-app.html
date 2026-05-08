@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="SprintTime">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0A0A0A">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
 <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22SprintTime%22,%22short_name%22:%22SprintTime%22,%22display%22:%22standalone%22,%22orientation%22:%22portrait%22,%22background_color%22:%22%230A0A0A%22,%22theme_color%22:%22%230A0A0A%22}">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2040,8 +2041,8 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type.startsWith('video/')) return;
-    const url = URL.createObjectURL(file);
-    video.src = url;
+    if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
+    video.src = URL.createObjectURL(file);
     video.load();
     showScreen(2);
   }
@@ -2365,18 +2366,40 @@
       return min + ':' + String(sec).padStart(6, '0');
     }
 
+    const colorEl = document.createElement('div');
+    colorEl.className = 'seg-color';
+    colorEl.style.background = color.cssVar;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'seg-name';
+    nameEl.textContent = name;
+
+    const rangeEl = document.createElement('div');
+    rangeEl.className = 'seg-range';
+    rangeEl.textContent = fmtSec(startSec) + ' → ' + fmtSec(endSec);
+
+    const infoEl = document.createElement('div');
+    infoEl.className = 'seg-info';
+    infoEl.appendChild(nameEl);
+    infoEl.appendChild(rangeEl);
+
+    const smallEl = document.createElement('small');
+    smallEl.textContent = 's';
+
+    const durationEl = document.createElement('div');
+    durationEl.className = 'seg-duration';
+    durationEl.style.color = color.cssVar;
+    durationEl.textContent = defaultDuration.toFixed(3);
+    durationEl.appendChild(smallEl);
+
+    const durationWrap = document.createElement('div');
+    durationWrap.appendChild(durationEl);
+
     const item = document.createElement('div');
     item.className = 'seg-item';
-    item.innerHTML = `
-      <div class="seg-color" style="background:${color.cssVar};"></div>
-      <div class="seg-info">
-        <div class="seg-name">${name}</div>
-        <div class="seg-range">${fmtSec(startSec)} → ${fmtSec(endSec)}</div>
-      </div>
-      <div>
-        <div class="seg-duration" style="color:${color.cssVar}">${defaultDuration.toFixed(3)}<small>s</small></div>
-      </div>
-    `;
+    item.appendChild(colorEl);
+    item.appendChild(infoEl);
+    item.appendChild(durationWrap);
     segsList.appendChild(item);
   });
 
