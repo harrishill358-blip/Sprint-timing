@@ -2020,17 +2020,17 @@
 
 <script>
   const screenCount = 5;
+  const phoneScreens = Array.from({ length: screenCount }, (_, i) => document.getElementById('ps-' + i));
+  const flowSteps    = Array.from({ length: screenCount }, (_, i) => document.getElementById('fs-' + i));
+  const screenTabs   = Array.from(document.querySelectorAll('.screen-tab'));
 
   function showScreen(idx) {
-    for (let i = 0; i < screenCount; i++) {
-      document.getElementById('ps-' + i).classList.toggle('active', i === idx);
-    }
-    document.querySelectorAll('.screen-tab').forEach((t, i) => {
-      t.classList.toggle('active', i === idx);
-    });
-    for (let i = 0; i < screenCount; i++) {
-      document.getElementById('fs-' + i).classList.toggle('active', i === idx);
-    }
+    phoneScreens.forEach((el, i) => el.classList.toggle('active', i === idx));
+    screenTabs.forEach((t, i)    => t.classList.toggle('active', i === idx));
+    flowSteps.forEach((el, i)    => el.classList.toggle('active', i === idx));
+    // Pause RAF when leaving the player screen (screen index 2)
+    if (idx !== 2) stopRaf();
+    else if (!video.paused) startRaf();
   }
 
   // ── Video upload ──────────────────────────────────────────────
@@ -2040,9 +2040,10 @@
 
   function loadVideoFile(file) {
     if (!file || !file.type.startsWith('video/')) return;
-    const url = URL.createObjectURL(file);
-    video.src = url;
+    if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
+    video.src = URL.createObjectURL(file);
     video.load();
+    playBtn.textContent = '▶';
     showScreen(2);
   }
 
@@ -2059,8 +2060,8 @@
     e.preventDefault();
     importDrop.style.borderColor = 'var(--green)';
   });
-  importDrop.addEventListener('dragleave', () => {
-    importDrop.style.borderColor = '';
+  importDrop.addEventListener('dragleave', (e) => {
+    if (!importDrop.contains(e.relatedTarget)) importDrop.style.borderColor = '';
   });
   importDrop.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -2143,22 +2144,23 @@
     return e.touches ? e.touches[0].clientX : e.clientX;
   }
 
+  let scrubRect = null;
   function pctFromEvent(e) {
-    // Use the track element for pixel-accurate bounds (excludes any wrap padding)
-    const rect = scrubberTrack.getBoundingClientRect();
+    const rect = scrubRect || scrubberTrack.getBoundingClientRect();
     return Math.max(0, Math.min(1, (clientXFromEvent(e) - rect.left) / rect.width));
   }
 
   function seekFromEvent(e) {
     if (!video.src || !video.duration) return;
     const pct = pctFromEvent(e);
-    setScrubberPct(pct);          // immediate visual update
+    setScrubberPct(pct);
     video.currentTime = pct * video.duration;
   }
 
   let scrubbing = false;
   scrubberWrap.addEventListener('mousedown', (e) => {
     scrubbing = true;
+    scrubRect = scrubberTrack.getBoundingClientRect();
     scrubberThumb.classList.add('active');
     stopRaf();
     seekFromEvent(e);
@@ -2167,6 +2169,7 @@
   window.addEventListener('mouseup', () => {
     if (!scrubbing) return;
     scrubbing = false;
+    scrubRect = null;
     scrubberThumb.classList.remove('active');
     if (!video.paused) startRaf();
   });
@@ -2175,6 +2178,7 @@
   scrubberWrap.addEventListener('touchstart', (e) => {
     e.preventDefault();
     scrubbing = true;
+    scrubRect = scrubberTrack.getBoundingClientRect();
     scrubberThumb.classList.add('active');
     stopRaf();
     seekFromEvent(e);
@@ -2185,23 +2189,25 @@
   window.addEventListener('touchend', () => {
     if (!scrubbing) return;
     scrubbing = false;
+    scrubRect = null;
     scrubberThumb.classList.remove('active');
     if (!video.paused) startRaf();
   });
 
   // ── Playback speed ────────────────────────────────────────────
+  const speedBtns = Array.from(document.querySelectorAll('.speed-btn'));
   document.getElementById('speedRow').addEventListener('click', (e) => {
     const btn = e.target.closest('.speed-btn');
     if (!btn) return;
-    const rate = parseFloat(btn.dataset.rate);
-    video.playbackRate = rate;
-    document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+    video.playbackRate = parseFloat(btn.dataset.rate);
+    speedBtns.forEach(b => b.classList.toggle('active', b === btn));
   });
 
   // ── Quality chip toggle ───────────────────────────────────────
-  document.querySelectorAll('.q-chip').forEach(chip => {
+  const qChips = Array.from(document.querySelectorAll('.q-chip'));
+  qChips.forEach(chip => {
     chip.addEventListener('click', () => {
-      document.querySelectorAll('.q-chip').forEach(c => c.classList.remove('active'));
+      qChips.forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
     });
   });
@@ -2251,14 +2257,16 @@
       <div class="split-clock-delete">✕</div>
     `;
 
-    // Delete
+    // Delete — abort the drag listener when the clock is removed
+    const dragAbort = new AbortController();
     clock.querySelector('.split-clock-delete').addEventListener('click', (e) => {
       e.stopPropagation();
+      dragAbort.abort();
       clock.remove();
     });
 
     // Drag
-    makeDraggable(clock, viewport);
+    makeDraggable(clock, viewport, dragAbort.signal);
     viewport.appendChild(clock);
 
     // Update display whenever the video position changes (scrub or play)
@@ -2288,7 +2296,7 @@
     updateSplitDisplay(); // render immediately
   }
 
-  function makeDraggable(el, container) {
+  function makeDraggable(el, container, signal) {
     let startCX, startCY, startLeft, startTop, dragging = false;
 
     function down(e) {
@@ -2316,12 +2324,13 @@
 
     function up() { dragging = false; el.style.zIndex = 15; }
 
-    el.addEventListener('mousedown',  down);
-    el.addEventListener('touchstart', down, { passive: false });
-    document.addEventListener('mousemove',  move);
-    document.addEventListener('touchmove',  move, { passive: false });
-    document.addEventListener('mouseup',    up);
-    document.addEventListener('touchend',   up);
+    const opts = { signal };
+    el.addEventListener('mousedown',  down, opts);
+    el.addEventListener('touchstart', down, { passive: false, signal });
+    document.addEventListener('mousemove',  move, opts);
+    document.addEventListener('touchmove',  move, { passive: false, signal });
+    document.addEventListener('mouseup',    up,   opts);
+    document.addEventListener('touchend',   up,   opts);
   }
 
   // ── Pinch-to-zoom on video viewport ──────────────────────────
@@ -2359,7 +2368,7 @@
       panStartX = null;
     } else if (e.touches.length === 1 && zoomScale > 1) {
       pinchStartDist = null;
-      if (!e.target.closest('.sticker-clock')) {
+      if (!e.target.closest('.split-clock')) {
         panStartX  = e.touches[0].clientX;
         panStartY  = e.touches[0].clientY;
         panStartTx = zoomTx;

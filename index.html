@@ -1205,19 +1205,19 @@
 
 <script>
   const screenCount = 3;
+  const phoneScreens = Array.from({ length: screenCount }, (_, i) => document.getElementById('ps-' + i));
+  const flowSteps    = Array.from({ length: screenCount }, (_, i) => document.getElementById('fs-' + i));
+  const screenTabs   = Array.from(document.querySelectorAll('.screen-tab'));
 
   function showScreen(idx) {
-    for (let i = 0; i < screenCount; i++) {
-      document.getElementById('ps-' + i).classList.toggle('active', i === idx);
-    }
-    document.querySelectorAll('.screen-tab').forEach((t, i) => {
-      t.classList.toggle('active', i === idx);
-    });
-    for (let i = 0; i < screenCount; i++) {
-      document.getElementById('fs-' + i).classList.toggle('active', i === idx);
-    }
+    phoneScreens.forEach((el, i) => el.classList.toggle('active', i === idx));
+    screenTabs.forEach((t, i)    => t.classList.toggle('active', i === idx));
+    flowSteps.forEach((el, i)    => el.classList.toggle('active', i === idx));
     // Resize annotation canvas whenever Player screen becomes visible
     if (idx === 2) setTimeout(resizeAnnotationCanvas, 30);
+    // Pause RAF when leaving the player screen
+    if (idx !== 2) stopRaf();
+    else if (!video.paused) startRaf();
   }
 
   // ── Video upload ──────────────────────────────────────────────
@@ -1329,8 +1329,9 @@
     return e.touches ? e.touches[0].clientX : e.clientX;
   }
 
+  let scrubRect = null;
   function pctFromEvent(e) {
-    const rect = scrubberTrack.getBoundingClientRect();
+    const rect = scrubRect || scrubberTrack.getBoundingClientRect();
     return Math.max(0, Math.min(1, (clientXFromEvent(e) - rect.left) / rect.width));
   }
 
@@ -1343,34 +1344,34 @@
 
   let scrubbing = false;
   scrubberWrap.addEventListener('mousedown', (e) => {
-    scrubbing = true; stopRaf(); seekFromEvent(e);
+    scrubbing = true; scrubRect = scrubberTrack.getBoundingClientRect(); stopRaf(); seekFromEvent(e);
   });
   window.addEventListener('mousemove', (e) => { if (scrubbing) seekFromEvent(e); });
   window.addEventListener('mouseup', () => {
     if (!scrubbing) return;
-    scrubbing = false;
+    scrubbing = false; scrubRect = null;
     if (!video.paused) startRaf();
   });
 
   scrubberWrap.addEventListener('touchstart', (e) => {
-    e.preventDefault(); scrubbing = true; stopRaf(); seekFromEvent(e);
+    e.preventDefault(); scrubbing = true; scrubRect = scrubberTrack.getBoundingClientRect(); stopRaf(); seekFromEvent(e);
   }, { passive: false });
   window.addEventListener('touchmove', (e) => {
     if (scrubbing) { e.preventDefault(); seekFromEvent(e); }
   }, { passive: false });
   window.addEventListener('touchend', () => {
     if (!scrubbing) return;
-    scrubbing = false;
+    scrubbing = false; scrubRect = null;
     if (!video.paused) startRaf();
   });
 
   // ── Playback speed ────────────────────────────────────────────
+  const speedBtns = Array.from(document.querySelectorAll('.speed-btn'));
   document.getElementById('speedRow').addEventListener('click', (e) => {
     const btn = e.target.closest('.speed-btn');
     if (!btn) return;
-    const rate = parseFloat(btn.dataset.rate);
-    video.playbackRate = rate;
-    document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+    video.playbackRate = parseFloat(btn.dataset.rate);
+    speedBtns.forEach(b => b.classList.toggle('active', b === btn));
   });
 
   // ── Toggle switches ───────────────────────────────────────────
@@ -1395,8 +1396,8 @@
     redrawAnnotations();
   }
   window.addEventListener('resize', resizeAnnotationCanvas);
-  // Resize once player screen is visible
-  document.querySelectorAll('.screen-tab').forEach(t => t.addEventListener('click', () => setTimeout(resizeAnnotationCanvas, 50)));
+  // Resize once player screen is visible (reuse the already-cached screenTabs array)
+  screenTabs.forEach(t => t.addEventListener('click', () => setTimeout(resizeAnnotationCanvas, 50)));
   setTimeout(resizeAnnotationCanvas, 100);
 
   function setActiveTool(tool) {
@@ -1655,13 +1656,15 @@
       <div class="split-clock-delete">✕</div>
     `;
 
+    const dragAbort = new AbortController();
     clock.querySelector('.split-clock-delete').addEventListener('click', (e) => {
       e.stopPropagation();
+      dragAbort.abort();
       clock.remove();
     });
 
     // Drag — delta divided by zoom scale so clocks track in video space
-    makeDraggable(clock);
+    makeDraggable(clock, dragAbort.signal);
 
     // Pinch-to-resize — two fingers on the clock changes its size
     makePinchResizable(clock);
@@ -1696,7 +1699,7 @@
     updateSplitDisplay();
   }
 
-  function makeDraggable(el) {
+  function makeDraggable(el, signal) {
     let startCX, startCY, startLeft, startTop, dragging = false;
 
     function down(e) {
@@ -1725,12 +1728,13 @@
 
     function up() { dragging = false; el.style.zIndex = 15; }
 
-    el.addEventListener('mousedown',  down);
-    el.addEventListener('touchstart', down, { passive: false });
-    document.addEventListener('mousemove',  move);
-    document.addEventListener('touchmove',  move, { passive: false });
-    document.addEventListener('mouseup',    up);
-    document.addEventListener('touchend',   up);
+    const opts = { signal };
+    el.addEventListener('mousedown',  down, opts);
+    el.addEventListener('touchstart', down, { passive: false, signal });
+    document.addEventListener('mousemove',  move, opts);
+    document.addEventListener('touchmove',  move, { passive: false, signal });
+    document.addEventListener('mouseup',    up,   opts);
+    document.addEventListener('touchend',   up,   opts);
   }
 
   // ── Per-clock pinch-to-resize ────────────────────────────────
